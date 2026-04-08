@@ -1,0 +1,698 @@
+# SAFEEAT BUILD REFERENCE
+
+**Project:** SafeEat
+**Product/Domain:** Food Service — Allergen Compliance + Customer Retention
+**Deployment Target:** Railway (Railpack) → safeeat.co.uk + Cloudflare Workers (API)
+**Build Date:** April 2026
+**Security Level:** Enterprise + OWASP 2024 Compliant
+**Build Standard:** Autaimate Build Standard v2 (all addenda apply)
+
+---
+
+## What SafeEat Is
+
+SafeEat is a QR-powered safe-return CRM for independent UK food businesses — cafés, restaurants, takeaways, and market stalls. It turns the allergen compliance obligation every food business already has into a customer retention engine that drives repeat visits from the most loyal, highest-spending customer segment in hospitality: food-allergic diners.
+
+---
+
+## The Problem It Solves
+
+Two problems, currently solved by two separate product categories that don't talk to each other:
+
+**Problem 1 — Compliance:** UK food businesses must provide allergen information for non-prepacked food (Food Information Regulations 2014). The FSA's March 2025 guidance now sets an expectation that this information be provided in writing, not just verbally. Owen's Law (mandatory written allergen labelling) is progressing toward legislation, with the FSA evaluating the guidance's uptake from spring 2026. Most small businesses currently handle this with paper matrices, verbal "just ask staff" signage, or nothing at all. Compliance rates have dropped from 74% to 53% (Serve Legal, 2025). Prosecutions are accelerating — fines ranging from £1,920 to £43,816 for independent businesses in 2025–2026 alone.
+
+**Problem 2 — Retention:** Food-allergic customers are twice as loyal as non-allergic customers, less price-sensitive, bring groups of 3–4 people per visit, and actively recommend venues they trust (FSA research, FARE/EveryBite data, McKinsey). But 42–60% avoid eating out entirely because they don't feel safe. When they do find a safe venue, nobody captures them — no profile, no follow-up, no "come back" mechanism. Existing allergen tools (Allergen Checker, Menu Guide, Allergy Menu) display compliance information and stop. Existing loyalty tools (Embargo, Stamp Me, Loyalzoo) capture visit behaviour but know nothing about dietary needs. Nobody connects the two.
+
+---
+
+## What SafeEat Does
+
+SafeEat is the bridge. One product. Four promises:
+
+1. **Save my profile once.** Customer selects their allergens from the 14 UK-regulated list. Profile saved. Never re-entered.
+2. **Show me what's safe now.** Filtered menu shows only safe dishes. Green "safe for you" tags. Unsafe dishes hidden.
+3. **Remember me next time.** Profile persists across visits. Customer scans the same QR or opens their saved link — menu loads with their profile, no friction.
+4. **Prove the menu is current.** Weekly verification by venue owner. "Last verified" badge visible to customers. Goes amber after 14 days, suppresses personalised claims after 28 days.
+
+---
+
+## The 90-Second Customer Journey
+
+### Visit 1: First Scan
+
+1. Customer sees QR code on menu, counter, receipt, or window sticker
+2. Scans with phone camera — no app download, opens as PWA in browser
+3. Branded digital menu loads for that specific venue
+4. Banner: "Have allergies? Tap to filter your menu"
+5. Customer selects allergens (milk, nuts, gluten, etc.) — one tap each
+6. Menu instantly filters to safe dishes only, each with green "Safe for you" tag
+7. Prompt: "Save your profile so [Venue Name] can remember you next time?"
+   - Explicit GDPR Article 9 consent: two separate opt-ins
+   - Opt-in 1: Save dietary profile (for filtering on return visits)
+   - Opt-in 2: Receive notifications about new safe dishes (marketing)
+   - "No thanks" still shows filtered menu for this session — no profile saved
+8. Customer saves profile → gets bookmark/home-screen prompt via PWA manifest
+9. No account creation, no password, no app download
+
+### Between Visits: The Safe Return Loop
+
+10. Venue owner adds or changes a dish/ingredient
+11. System cross-references against saved customer profiles
+12. Matching customers receive notification: "[Venue Name] just added a new nut-free brownie. Your usual flat white is still safe too."
+13. Notification includes one-tap link back to their personalised safe menu
+
+### Visit 2+: The Return
+
+14. Customer returns, scans QR or opens saved link
+15. Menu loads instantly with their saved allergen profile — no re-entering. Service worker caches menu for instant load even on poor signal.
+16. "Welcome back" header, "Last verified [date]" badge
+17. Customer orders with confidence. Venue has retained a high-value customer without a single discount or stamp card.
+
+### Venue Side: Weekly Verification
+
+18. Every Monday 8am: push/email to venue owner — "Confirm your menu is still accurate"
+19. Owner taps confirm (no changes) or updates affected dishes
+20. "Last verified" badge updates on customer-facing menu
+21. If no verification for 14 days: badge turns amber, customer sees "Menu not recently verified — please check with staff"
+22. If no verification for 28 days: personalised "safe for you" claims suppressed, menu reverts to standard allergen matrix only
+
+---
+
+## Tech Stack (Autaimate Standard v2 Compliant)
+
+| Layer | Technology | Notes |
+|---|---|---|
+| **Frontend** | React 18.3.1 / TypeScript (strict) / Vite 5.4.1 / Tailwind CSS 3.4.1 | PWA with service worker (Addendum A pattern) |
+| **Icons** | Lucide React 0.445.0 | Consistent with all Autaimate builds |
+| **SEO** | React Helmet Async | 15-point SEO framework applied |
+| **Sanitisation** | DOMPurify 3.0.6 | Input sanitisation on all user content |
+| **Routing** | React Router DOM 6.26.1 | No plain anchor tags for internal links (H11) |
+| **Error Tracking** | Sentry/React | Frontend + Workers, PII stripped (Layer 5) |
+| **Backend API** | Cloudflare Workers (Hono framework) | Edge deployment, sub-100ms response (H1) |
+| **Database** | Neon PostgreSQL | RLS enabled on all tables + pgcrypto for PII (H2) |
+| **Auth** | Clerk | Venue owners only — JWT verification via JWKS (H2 pattern) |
+| **Caching/Rate Limiting** | Upstash Redis | Sliding window rate limiting (Layer 6) |
+| **File Storage** | Cloudflare R2 | Venue logos, QR assets, badge PDFs (Addendum B security) |
+| **Email** | Resend | Transactional + notification emails with webhook tracking (H7) |
+| **SMS** | Twilio | Customer notifications, verification prompts |
+| **Payments** | Stripe | Subscription billing, metered SMS overages |
+| **Deployment** | Railway (Railpack) europe-west4 | Auto-deploy on push to main (H9 SPA routing) |
+| **Analytics** | Google Analytics 4 | Non-PII event tracking only |
+
+---
+
+## Project Structure (Autaimate Standard v2)
+
+```
+safeeat/
+├── apps/
+│   ├── web/                          # Customer-facing PWA (Railway)
+│   │   ├── src/
+│   │   │   ├── components/           # React components
+│   │   │   │   ├── menu/             # Menu display, allergen filter, dish cards
+│   │   │   │   ├── profile/          # Save profile, consent flow, manage profile
+│   │   │   │   ├── common/           # AccessibleInput, SecureFileUpload, SkipNav
+│   │   │   │   ├── layout/           # Navigation, Footer, SkipNav
+│   │   │   │   └── ui/              # Generic buttons, badges, modals
+│   │   │   ├── pages/               # Route pages with SEO wrappers
+│   │   │   │   ├── MenuPage.tsx      # QR scan landing — venue menu
+│   │   │   │   ├── ProfilePage.tsx   # Manage/delete profile
+│   │   │   │   ├── Home.tsx          # Marketing landing page
+│   │   │   │   ├── Privacy.tsx       # Privacy policy
+│   │   │   │   └── Terms.tsx         # Terms of service
+│   │   │   ├── hooks/               # Custom React hooks
+│   │   │   │   ├── useSessionTimeout.ts  # Session management (Layer 3)
+│   │   │   │   ├── useFormValidation.ts  # Form validation logic
+│   │   │   │   ├── useFetch.ts           # Secure API calls (Layer 4)
+│   │   │   │   ├── useOffline.ts         # Offline detection + queue (Addendum A)
+│   │   │   │   └── useFocusManagement.ts # Focus trap for modals (Addendum F)
+│   │   │   ├── utils/               # Security & helper functions
+│   │   │   │   ├── validation.ts     # Input validation patterns (Layer 1)
+│   │   │   │   ├── sanitization.ts   # XSS protection via DOMPurify
+│   │   │   │   ├── csrf.ts           # CSRF token handling (Layer 2)
+│   │   │   │   ├── errorTracking.ts  # Sentry integration (Layer 5)
+│   │   │   │   └── analytics.ts      # GA4 event tracking (non-PII)
+│   │   │   ├── types/               # TypeScript interfaces
+│   │   │   │   ├── menu.ts           # Venue, Dish, Ingredient types
+│   │   │   │   ├── profile.ts        # CustomerProfile, Consent types
+│   │   │   │   ├── api.ts            # API request/response types
+│   │   │   │   └── security.ts       # CSRF, validation result types
+│   │   │   ├── lib/                 # Shared constants
+│   │   │   │   └── allergens.ts      # 14 UK allergen bitmask + labels
+│   │   │   ├── App.tsx              # Main app + Sentry-wrapped routing
+│   │   │   ├── main.tsx             # Entry point with error boundary + Sentry init
+│   │   │   └── index.css            # Global Tailwind + CSS variables
+│   │   ├── public/
+│   │   │   ├── manifest.json        # PWA manifest (Addendum A)
+│   │   │   ├── sw.js                # Service worker — cache menu for offline (Addendum A)
+│   │   │   └── icons/               # PWA icons (192, 512)
+│   │   ├── index.html
+│   │   ├── vite.config.ts
+│   │   ├── tailwind.config.ts
+│   │   ├── tsconfig.json
+│   │   └── package.json
+│   │
+│   └── dashboard/                    # Venue owner dashboard (Railway — same deploy)
+│       ├── src/
+│       │   ├── components/           # Dish management, ingredient editor, notifications
+│       │   ├── pages/               # Dashboard, Menu Editor, Customer Insights, Settings
+│       │   ├── hooks/               # useSessionTimeout, useFetch patterns
+│       │   ├── utils/               # Same security utils as web/
+│       │   └── types/
+│       ├── vite.config.ts
+│       └── package.json
+│
+├── workers/
+│   ├── api/                          # Main API worker (Cloudflare Workers + Hono)
+│   │   ├── src/
+│   │   │   ├── index.ts             # Hono app entry + CORS + bodyLimit (H1)
+│   │   │   ├── routes/
+│   │   │   │   ├── venues.ts        # Venue CRUD (auth required)
+│   │   │   │   ├── dishes.ts        # Dish/ingredient management (auth required)
+│   │   │   │   ├── menu.ts          # Public menu fetch + allergen filter (no auth)
+│   │   │   │   ├── profiles.ts      # Customer profile save/delete (consent-gated)
+│   │   │   │   ├── verification.ts  # Weekly verification confirm/check
+│   │   │   │   ├── notifications.ts # Send allergen-targeted notifications
+│   │   │   │   └── health.ts        # Health check endpoint
+│   │   │   ├── middleware/
+│   │   │   │   ├── auth.ts          # Clerk JWT verification via JWKS
+│   │   │   │   ├── rateLimit.ts     # Upstash sliding window (Layer 6)
+│   │   │   │   └── tenant.ts        # Venue data isolation (Addendum E pattern)
+│   │   │   ├── services/
+│   │   │   │   ├── allergenFilter.ts # Bitmask filtering logic
+│   │   │   │   ├── notificationService.ts # Resend + Twilio dispatch
+│   │   │   │   └── verificationService.ts # Verification scheduling
+│   │   │   ├── db/
+│   │   │   │   ├── schema.sql       # Tables, RLS policies, pgcrypto functions
+│   │   │   │   ├── queries.ts       # Parameterised queries (no raw SQL injection)
+│   │   │   │   └── migrate.ts       # Migration runner
+│   │   │   ├── crypto/
+│   │   │   │   └── encryption.ts    # pgcrypto encrypt/decrypt wrappers
+│   │   │   └── types/
+│   │   │       └── env.ts           # Cloudflare Worker Env bindings
+│   │   ├── wrangler.toml
+│   │   └── package.json
+│   │
+│   ├── webhooks/                     # Webhook handler worker (Addendum D)
+│   │   ├── src/
+│   │   │   ├── index.ts             # Stripe + Clerk webhook routing
+│   │   │   ├── stripe.ts            # Signature verification + event handling
+│   │   │   └── clerk.ts             # Svix verification + user sync
+│   │   ├── wrangler.toml
+│   │   └── package.json
+│   │
+│   └── notifications/                # Scheduled worker — weekly verification + notifications
+│       ├── src/
+│       │   └── index.ts             # Cron trigger: Monday 8am verification prompts
+│       ├── wrangler.toml
+│       └── package.json
+│
+├── .env.example                      # Environment variables template (Layer 8)
+├── .gitignore                        # Includes .env.local, node_modules, dist
+└── SAFEEAT-BUILD-REFERENCE.md        # This file
+```
+
+---
+
+## Security Implementation (Autaimate Standard v2 — All 8 Layers)
+
+### Layer 1: Input Validation & Sanitisation
+- `utils/validation.ts` — validateInput() for email, number, text, currency, allergen selection
+- DOMPurify on all user-submitted text (dish names, descriptions, ingredient names)
+- All validation patterns from Build Standard Layer 1 applied
+
+### Layer 2: CSRF Protection
+- `utils/csrf.ts` — CSRF tokens on all POST/PUT/DELETE operations
+- Venue dashboard dish creation, ingredient updates, verification confirmations all CSRF-protected
+- Customer profile save uses CSRF token
+
+### Layer 3: Session Management & Timeout
+- `hooks/useSessionTimeout.ts` — 15-minute absolute, 10-minute idle for venue owner dashboard
+- Customer-facing PWA has no session (profile is stateless, keyed to hashed identifier)
+
+### Layer 4: Secure API Calls
+- `hooks/useFetch.ts` — SSRF protection (relative URLs only), credentials: include, Sentry error capture
+- No API keys in client code — all sensitive calls through Cloudflare Workers
+
+### Layer 5: Error Tracking with Sentry
+- `utils/errorTracking.ts` — Sentry init with PII stripping, replay masking
+- Authorization and CSRF headers stripped from Sentry events
+- Allergen data NEVER sent to Sentry
+
+### Layer 6: Rate Limiting via Upstash
+- Public endpoints (QR scan/menu fetch): 30 requests per 60 seconds per IP
+- Profile save: 5 requests per 60 seconds per IP
+- Notification send (venue): 100 per hour per venue
+- Dashboard auth endpoints: 10 per 60 seconds per IP
+
+### Layer 7: Security Headers (Railway/Caddy)
+- X-Frame-Options: DENY
+- X-Content-Type-Options: nosniff
+- X-XSS-Protection: 1; mode=block
+- Referrer-Policy: strict-origin-when-cross-origin
+- Strict-Transport-Security: max-age=31536000; includeSubDomains
+- Content-Security-Policy: default-src 'self'; connect-src 'self' https://api.safeeat.co.uk https://sentry.io; frame-ancestors 'none'
+- Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+### Layer 8: Environment Variables
+- All secrets in Railway/Workers environment variables
+- .env.example committed, .env.local in .gitignore
+- VITE_ prefix for client-safe variables only
+- Database URL, Stripe secret key, Clerk secret key — backend only, never prefixed
+
+---
+
+## Neon PostgreSQL Security (Addendum H2 Pattern)
+
+### Row-Level Security (RLS)
+Every table containing venue data MUST have RLS enabled:
+
+```sql
+ALTER TABLE dishes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY dishes_own_venue ON dishes
+  FOR ALL
+  USING (venue_id::text = current_setting('app.current_venue_id', true))
+  WITH CHECK (venue_id::text = current_setting('app.current_venue_id', true));
+```
+
+RLS applied to: dishes, ingredients, dish_ingredients, customer_venues, verification_log, notification_log.
+
+### pgcrypto Encryption at Rest
+Customer allergen profiles are UK GDPR Article 9 special-category data. Encrypted using pgcrypto:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Encrypt allergen data on insert
+INSERT INTO customer_profiles (hashed_identifier, contact_encrypted, allergens_encrypted)
+VALUES (
+  $1,
+  encrypt_value($2, current_setting('app.encryption_key')),
+  encrypt_value($3, current_setting('app.encryption_key'))
+);
+
+-- Decrypt for allergen filtering
+SELECT decrypt_value(allergens_encrypted, current_setting('app.encryption_key')) as allergens
+FROM customer_profiles WHERE hashed_identifier = $1;
+```
+
+### Append-Only Audit Log
+All consent changes, profile deletions, and verification events logged:
+
+```sql
+CREATE TABLE audit_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  venue_id uuid,
+  actor_type text NOT NULL,
+  action text NOT NULL,
+  metadata jsonb,
+  ip_hash text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+REVOKE UPDATE, DELETE ON audit_log FROM app_role;
+```
+
+---
+
+## Data Model
+
+### Core Entities
+
+**venues**
+- id uuid PK DEFAULT gen_random_uuid()
+- clerk_user_id text NOT NULL
+- name varchar(255) NOT NULL
+- address text
+- logo_r2_key varchar(500)
+- qr_code_id varchar(50) UNIQUE NOT NULL
+- subscription_tier text CHECK (subscription_tier IN ('solo', 'growing', 'multi'))
+- subscription_status text CHECK (subscription_status IN ('trial', 'active', 'past_due', 'cancelled'))
+- stripe_customer_id varchar(255)
+- last_verified_at timestamptz
+- last_verified_by text
+- created_at timestamptz DEFAULT now()
+- updated_at timestamptz DEFAULT now()
+
+**dishes**
+- id uuid PK DEFAULT gen_random_uuid()
+- venue_id uuid FK → venues NOT NULL
+- name varchar(255) NOT NULL
+- category varchar(100)
+- description text
+- price_pence integer
+- is_active boolean DEFAULT true
+- created_at timestamptz DEFAULT now()
+- updated_at timestamptz DEFAULT now()
+
+**ingredients**
+- id uuid PK DEFAULT gen_random_uuid()
+- venue_id uuid FK → venues NOT NULL
+- name varchar(255) NOT NULL
+- allergen_flags integer NOT NULL DEFAULT 0
+- supplier_name varchar(255)
+- created_at timestamptz DEFAULT now()
+- updated_at timestamptz DEFAULT now()
+
+**dish_ingredients**
+- dish_id uuid FK → dishes
+- ingredient_id uuid FK → ingredients
+- PRIMARY KEY (dish_id, ingredient_id)
+
+**customer_profiles** (ENCRYPTED — special-category data)
+- id uuid PK DEFAULT gen_random_uuid()
+- hashed_identifier varchar(64) UNIQUE NOT NULL
+- contact_encrypted bytea NOT NULL
+- allergens_encrypted bytea NOT NULL
+- consent_profile boolean NOT NULL DEFAULT false
+- consent_profile_at timestamptz
+- consent_marketing boolean NOT NULL DEFAULT false
+- consent_marketing_at timestamptz
+- consent_version varchar(10) DEFAULT '1.0'
+- created_at timestamptz DEFAULT now()
+- updated_at timestamptz DEFAULT now()
+- last_active_at timestamptz DEFAULT now()
+
+**customer_venues**
+- customer_id uuid FK → customer_profiles
+- venue_id uuid FK → venues
+- first_scan_at timestamptz DEFAULT now()
+- last_scan_at timestamptz DEFAULT now()
+- scan_count integer DEFAULT 1
+- PRIMARY KEY (customer_id, venue_id)
+
+**verification_log**
+- id uuid PK DEFAULT gen_random_uuid()
+- venue_id uuid FK → venues NOT NULL
+- verified_by text NOT NULL
+- changes_made jsonb
+- verified_at timestamptz DEFAULT now()
+
+**notification_log**
+- id uuid PK DEFAULT gen_random_uuid()
+- venue_id uuid FK → venues NOT NULL
+- customer_id uuid FK → customer_profiles NOT NULL
+- notification_type text CHECK (notification_type IN ('new_dish', 'menu_update', 'custom'))
+- channel text CHECK (channel IN ('email', 'sms'))
+- message_preview varchar(255)
+- sent_at timestamptz DEFAULT now()
+- delivered boolean
+
+**audit_log** (append-only — no UPDATE/DELETE)
+- id uuid PK DEFAULT gen_random_uuid()
+- venue_id uuid
+- actor_type text NOT NULL
+- action text NOT NULL
+- metadata jsonb
+- ip_hash text
+- created_at timestamptz DEFAULT now()
+
+### Allergen Bitmask
+
+| Bit | Value | Allergen |
+|---|---|---|
+| 0 | 1 | Celery |
+| 1 | 2 | Cereals containing gluten |
+| 2 | 4 | Crustaceans |
+| 3 | 8 | Eggs |
+| 4 | 16 | Fish |
+| 5 | 32 | Lupin |
+| 6 | 64 | Milk |
+| 7 | 128 | Molluscs |
+| 8 | 256 | Mustard |
+| 9 | 512 | Tree nuts |
+| 10 | 1024 | Peanuts |
+| 11 | 2048 | Sesame |
+| 12 | 4096 | Soybeans |
+| 13 | 8192 | Sulphur dioxide / sulphites |
+
+A dish's allergen profile = bitwise OR of all its ingredient allergen_flags.
+A customer's safe dishes = WHERE (dish_allergens & customer_allergens) = 0.
+
+---
+
+## PWA & Offline Support (Addendum A Pattern)
+
+### Service Worker Strategy
+- **Static assets:** Cache-first (menu shell, CSS, JS, icons)
+- **Menu data:** Network-first with cache fallback (venue menus, dish data)
+- **Profile saves:** Queue offline, sync via Background Sync API when reconnected
+- **Verification badge:** Cached with last-known state, updated on reconnect
+
+### PWA Manifest
+```json
+{
+  "name": "SafeEat",
+  "short_name": "SafeEat",
+  "description": "See what's safe to eat — filtered for your allergies",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "categories": ["food", "health"]
+}
+```
+
+---
+
+## Consent Flow (UK GDPR Article 9)
+
+### Legal Basis
+- **Processing allergen data:** Explicit consent — Article 9(2)(a)
+- **Sending notifications:** Consent — Article 6(1)(a) + PECR regulation 22
+
+### In-Product Consent Screen
+
+```
+Save your dietary needs
+
+[Venue Name] will store which allergens you've selected so we can:
+✓ Show you only safe dishes when you visit
+✓ Remember your needs for next time
+
+Your allergy information is encrypted and never shared.
+
+[Save my profile]    [No thanks, just show me today's menu]
+
+─────────────────────
+
+☐ Also let [Venue Name] message me when they add
+  new dishes safe for me (you can unsubscribe anytime)
+```
+
+### Consent Rules
+- Two separate consents — never bundled
+- "No thanks" still shows filtered menu for current session
+- Profile consent can exist without marketing consent
+- One-tap profile deletion: immediate, irreversible, confirmed via email/SMS
+- Consent record stored in audit_log: timestamp, version, IP hash, scope
+- Auto-delete profiles inactive for 18 months (scheduled worker)
+
+---
+
+## Verification Loop
+
+| Trigger | Action | Customer Impact |
+|---|---|---|
+| Weekly (Monday 8am) | Scheduled worker sends push/email to venue owner | "Last verified" badge updates |
+| Ingredient/supplier change | Owner prompted to re-check affected dishes | Affected dishes flagged "being updated" |
+| 14 days no verification | Warning to owner; badge turns amber | Customer sees "Menu not recently verified — please check with staff" |
+| 28 days no verification | Personalised claims suppressed | Menu reverts to standard allergen matrix, no "safe for you" tags |
+
+---
+
+## Pricing
+
+| Tier | Price | Includes |
+|---|---|---|
+| **Solo** | £9.99/month | 1 venue, up to 50 dishes, QR code, customer profiles, weekly verification, basic notifications (SMS 100/month, email unlimited) |
+| **Growing** | £19.99/month | 1 venue, unlimited dishes, unlimited profiles, push + SMS + email notifications, "SafeEat Verified" window badge (physical), analytics dashboard |
+| **Multi** | £29.99/month | Up to 3 venues, everything in Growing, cross-venue customer profiles |
+
+30-day free trial. Card upfront. Cancel anytime. No free tier.
+
+---
+
+## Accessibility (Addendum F — WCAG 2.1 AA)
+
+- All interactive elements: minimum 44px touch target
+- Colour contrast: 4.5:1 minimum
+- `<html lang="en-GB">` on all pages
+- SkipNav component on all pages
+- AccessibleInput component for all form fields
+- Focus trap on modals (consent modal, profile management)
+- Keyboard navigation for allergen selection
+- Screen reader announcements for menu filter results
+
+---
+
+## Webhook Security (Addendum D Pattern)
+
+### Stripe Webhooks
+- Signature verification via stripe.webhooks.constructEvent()
+- Events: subscription.created, subscription.updated, subscription.deleted, invoice.payment_failed
+
+### Clerk Webhooks
+- Svix signature verification
+- Events: user.created, user.updated, session.ended
+
+---
+
+## Railway Deployment (Addendum H9)
+
+### SPA Routing Fix
+```
+npm run build && mkdir -p dist/privacy dist/terms dist/menu dist/profile && cp dist/index.html dist/privacy/index.html && cp dist/index.html dist/terms/index.html && cp dist/index.html dist/menu/index.html && cp dist/index.html dist/profile/index.html
+```
+
+### package.json Syntax
+Railpack's hujson parser is strict — validate JSON before every commit.
+
+---
+
+## Authenticated File Downloads (Addendum H10)
+
+Badge PDF and compliance reports use blob download pattern — fetch with auth header, trigger client-side download via URL.createObjectURL.
+
+---
+
+## Build Approach
+
+- **Batch 1:** 6 files (foundation)
+- **Batch 2+:** 3 files per batch
+- Complete file replacements, not diffs
+- GitHub web interface commits (no CLI)
+- Surgical edits only for single-field additions to large files
+- **NEVER create multiple files before verifying deployment**
+
+### Build Sequence
+1. Foundation: shared types, allergen constants, Worker scaffolding, security utils
+2. Database: schema.sql with RLS + pgcrypto, query functions
+3. API routes: menu (public), venues (auth), dishes (auth), profiles (consent-gated)
+4. Customer PWA: menu display, allergen filter, profile save with consent
+5. Venue dashboard: dish management, ingredient editor, verification flow
+6. Notifications: scheduled worker, Resend + Twilio dispatch
+7. Stripe: subscription billing, webhook handling
+8. PWA: service worker, manifest, offline support
+
+---
+
+## OWASP Top 10 2024 Compliance Checklist
+
+### 1. Broken Access Control
+- [ ] No sensitive data in localStorage/sessionStorage
+- [ ] No API keys in client code
+- [ ] Clerk JWT verification on all venue owner endpoints
+- [ ] RLS on all Neon tables
+- [ ] Customer can only access/delete own profile
+
+### 2. Cryptographic Failures
+- [ ] All API calls HTTPS only
+- [ ] pgcrypto encryption on allergen profiles
+- [ ] Neon encrypted connections
+- [ ] SHA-256 hashing on customer identifiers
+- [ ] TLS 1.2+ enforced
+
+### 3. Injection
+- [ ] Input validation on ALL user inputs via validation.ts
+- [ ] Parameterised queries only
+- [ ] No eval() or Function() constructor
+- [ ] No innerHTML with unsanitised content
+- [ ] HTML entities escaped before display
+
+### 4. Insecure Design
+- [ ] Upstash rate limiting on all public endpoints
+- [ ] CSRF protection on all state-changing operations
+- [ ] Error messages never leak internal state
+- [ ] Consent architecture reviewed against ICO guidance
+
+### 5. Security Misconfiguration
+- [ ] NODE_ENV=production on Railway
+- [ ] No default credentials
+- [ ] Security headers configured
+- [ ] CORS whitelist: safeeat.co.uk, api.safeeat.co.uk only
+
+### 6. Vulnerable & Outdated Components
+- [ ] npm audit clean
+- [ ] No packages with known CVEs
+- [ ] Dependencies kept current
+
+### 7. Authentication & Session Management
+- [ ] Clerk auth + MFA available for venue owners
+- [ ] 15-minute session timeout, 10-minute idle timeout
+- [ ] No credentials in logs or Sentry events
+
+### 8. Software & Data Integrity
+- [ ] Validation on client AND server
+- [ ] Append-only audit log
+- [ ] Webhook signature verification
+
+### 9. Logging & Monitoring
+- [ ] Sentry error tracking on frontend + Workers
+- [ ] GA4 event tracking (non-PII only)
+- [ ] Audit log for all consent changes
+- [ ] Allergen data NEVER in logs, Sentry, or analytics
+
+### 10. SSRF Prevention
+- [ ] Relative URLs only in client code
+- [ ] No user control over redirect destinations
+- [ ] Workers only call whitelisted external services
+
+---
+
+## Competitive Position
+
+| Product | Allergen Filtering | Persistent Profiles | CRM/Notifications | Indie-Friendly | Price |
+|---|---|---|---|---|---|
+| Allergen Checker | Display only | ❌ | ❌ | ✅ | Free/£36/mo |
+| Allergy Menu | ✅ Interactive | ❌ | ❌ | ✅ | £15/mo |
+| Menu Guide | ✅ Searchable | ❌ | ❌ | ✅ | Tiered |
+| Kafoodle | ✅ Digital menus | ❌ | ❌ | ⚠️ | From £20/mo |
+| EveryBite (US) | ✅ + profiles | ✅ | ❌ | ❌ Enterprise | Bespoke |
+| TrustDish (IE) | ✅ via app | ✅ via app | ⚠️ | ✅ | €79/mo |
+| Vita Mojo (UK) | ✅ in ordering | ✅ loyalty | ✅ full CRM | ❌ Enterprise | Bespoke |
+| Embargo | ❌ | ❌ | ✅ full CRM | ✅ | ~10% commission |
+| **SafeEat** | **✅ QR + filter** | **✅ persistent** | **✅ allergen-targeted** | **✅** | **£9.99/mo** |
+
+---
+
+## Exit Targets (18–36 months)
+
+| Acquirer | What they get |
+|---|---|
+| Deliveroo / JustEat | Verified allergen data for independents + customer dietary profiles |
+| Embargo | Allergen-aware CRM their competitors can't replicate |
+| Hamilton Fraser / food liability insurers | Verified compliance data reducing allergen incident claims |
+| Kafoodle / Menu Guide | The retention layer their compliance tools lack |
+
+---
+
+## Data Moat
+
+Every customer profile maps: person → allergens → venue → dishes viewed → return frequency → geography. Within 12 months: the UK's first dataset of allergen prevalence by venue type and region, verified compliance records for independents, and customer return-rate data correlated with allergen transparency. The code is copyable. The dataset is not.
+
+---
+
+## Regulatory Context
+
+- **Food Information Regulations 2014** — requires allergen information for non-prepacked food
+- **FSA Best Practice Guidance (March 2025)** — sets expectation of written allergen information
+- **Owen's Law** — proposed mandatory written allergen labelling, FSA evaluation from spring 2026
+- **Natasha's Law (October 2021)** — mandatory ingredient labelling for PPDS food (adjacent)
+- **UK GDPR Article 9** — special-category data requires explicit consent
+- **PECR** — marketing communications require separate consent
+- **ICO Special Category Guidance** — explicit opt-in, granular consent, deletion rights
+
+---
+
+*Document created: April 2026*
+*Product: SafeEat — safeeat.co.uk*
+*Founder: Mick, Autaimate*
+*Build Standard: Autaimate Build Standard v2 + all Addenda (A–H)*
+*Stack: React 18.3.1 / TypeScript / Vite 5.4.1 / Tailwind 3.4.1 / Hono / CF Workers / Neon / Clerk / Stripe / Upstash / Resend / Twilio / Railway*
