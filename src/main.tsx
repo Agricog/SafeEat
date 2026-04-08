@@ -4,20 +4,20 @@ import './index.css'
 
 function App() {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <div style={{ textAlign: 'center', padding: '24px' }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🍽️</div>
-        <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#111827', margin: '0 0 8px 0' }}>
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center px-6">
+        <div className="text-5xl mb-4">🍽️</div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
           SafeEat
         </h1>
-        <p style={{ fontSize: '18px', color: '#6b7280', margin: '0 0 4px 0' }}>
+        <p className="text-lg text-gray-500 mb-1">
           See what&apos;s safe to eat
         </p>
-        <p style={{ fontSize: '14px', color: '#9ca3af', margin: '0 0 32px 0' }}>
+        <p className="text-sm text-gray-400 mb-8">
           Launching soon — safeeat.co.uk
         </p>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '9999px', backgroundColor: '#f0fdf4', color: '#15803d', fontSize: '14px', fontWeight: 500 }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-se-green-50 text-se-green-700 text-sm font-medium">
+          <span className="w-2 h-2 rounded-full bg-se-green-500 animate-pulse" />
           Deploy successful
         </div>
       </div>
