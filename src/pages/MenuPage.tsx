@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useParams } from 'react-router-dom'
 import AllergenSelector from '../components/AllergenSelector'
 import AllergenBadge from '../components/AllergenBadge'
 import VerifiedBadge from '../components/VerifiedBadge'
@@ -15,34 +16,78 @@ interface Dish {
   category: string
 }
 
-const DEMO_VENUE_ID = 'demo'
-const DEMO_VENUE_NAME = 'The Demo Café'
+interface Venue {
+  id: string
+  name: string
+  slug: string
+  address: string
+}
 
-const DEMO_DISHES: Dish[] = [
-  { id: '1', name: 'Margherita Pizza', description: 'Tomato, mozzarella, fresh basil', pricePence: 1095, allergenMask: (1 << 1) | (1 << 6), category: 'Mains' },
-  { id: '2', name: 'Caesar Salad', description: 'Romaine, parmesan, croutons, anchovy dressing', pricePence: 895, allergenMask: (1 << 1) | (1 << 3) | (1 << 4) | (1 << 6), category: 'Starters' },
-  { id: '3', name: 'Grilled Chicken Breast', description: 'Free-range chicken, seasonal veg, new potatoes', pricePence: 1495, allergenMask: 0, category: 'Mains' },
-  { id: '4', name: 'Chocolate Brownie', description: 'Warm brownie, vanilla ice cream', pricePence: 695, allergenMask: (1 << 3) | (1 << 6) | (1 << 1), category: 'Desserts' },
-  { id: '5', name: 'Fish & Chips', description: 'Beer-battered cod, triple-cooked chips, mushy peas', pricePence: 1395, allergenMask: (1 << 1) | (1 << 4), category: 'Mains' },
-  { id: '6', name: 'Fruit Sorbet', description: 'Rotating seasonal flavours, dairy-free', pricePence: 595, allergenMask: 0, category: 'Desserts' },
-]
+interface MenuData {
+  venue: Venue
+  dishes: Dish[]
+  verification: { verifiedAt: string; type: string } | null
+}
 
 function formatPrice(pence: number): string {
   return `£${(pence / 100).toFixed(2)}`
 }
 
 export default function MenuPage() {
-  const { profile, saveProfile, deleteProfile } = useLocalProfile(DEMO_VENUE_ID)
+  const { venueId } = useParams<{ venueId: string }>()
 
-  const [selectedAllergens, setSelectedAllergens] = useState<string[]>(
-    profile?.allergenIds ?? []
-  )
+  // ---------------------------------------------------------------------------
+  // Fetch menu data from API
+  // ---------------------------------------------------------------------------
+  const [menuData, setMenuData] = useState<MenuData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!venueId) return
+
+    setLoading(true)
+    setError(null)
+
+    fetch(`/api/menu/${venueId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(res.status === 404 ? 'Venue not found' : 'Failed to load menu')
+        return res.json()
+      })
+      .then((data: MenuData) => {
+        setMenuData(data)
+        setLoading(false)
+      })
+      .catch((err) => {
+        setError(err.message)
+        setLoading(false)
+      })
+  }, [venueId])
+
+  // ---------------------------------------------------------------------------
+  // Profile management
+  // ---------------------------------------------------------------------------
+  const venue = menuData?.venue
+  const dishes = menuData?.dishes ?? []
+  const verification = menuData?.verification
+
+  const { profile, saveProfile, deleteProfile } = useLocalProfile(venue?.id ?? '')
+
+  const [selectedAllergens, setSelectedAllergens] = useState<string[]>([])
   const [showSelector, setShowSelector] = useState(false)
   const [showSavePrompt, setShowSavePrompt] = useState(false)
   const [promptDismissed, setPromptDismissed] = useState(false)
-  const [savedConfirmation, setSavedConfirmation] = useState(!!profile)
+  const [savedConfirmation, setSavedConfirmation] = useState(false)
 
-// Show save prompt after user selects allergens and closes the selector
+  // Load profile allergens once venue data arrives
+  useEffect(() => {
+    if (profile) {
+      setSelectedAllergens(profile.allergenIds)
+      setSavedConfirmation(true)
+    }
+  }, [profile])
+
+  // Show save prompt after user selects allergens and closes the selector
   const [selectorWasOpen, setSelectorWasOpen] = useState(false)
 
   useEffect(() => {
@@ -66,7 +111,8 @@ export default function MenuPage() {
   }, [showSelector, selectorWasOpen, selectedAllergens.length, profile, promptDismissed, savedConfirmation])
 
   const handleSave = (marketingConsent: boolean) => {
-    saveProfile(selectedAllergens, DEMO_VENUE_NAME, marketingConsent)
+    if (!venue) return
+    saveProfile(selectedAllergens, venue.name, marketingConsent)
     setShowSavePrompt(false)
     setSavedConfirmation(true)
     setTimeout(() => setSavedConfirmation(false), 3000)
@@ -84,28 +130,70 @@ export default function MenuPage() {
     setSavedConfirmation(false)
   }
 
+  // ---------------------------------------------------------------------------
+  // Allergen filtering
+  // ---------------------------------------------------------------------------
   const customerMask = buildMaskFromIds(selectedAllergens)
 
   const categorised = useMemo(() => {
     const cats: Record<string, (Dish & { safe: boolean })[]> = {}
-    for (const dish of DEMO_DISHES) {
+    for (const dish of dishes) {
       const safe = isDishSafe(dish.allergenMask, customerMask)
       if (!cats[dish.category]) cats[dish.category] = []
       cats[dish.category].push({ ...dish, safe })
     }
     return cats
-  }, [customerMask])
+  }, [dishes, customerMask])
 
-  const categoryOrder = ['Starters', 'Mains', 'Desserts']
+  // Derive category order from actual data
+  const categoryOrder = ['Starters', 'Mains', 'Desserts', 'Sides', 'Drinks']
 
+  // ---------------------------------------------------------------------------
+  // Loading state
+  // ---------------------------------------------------------------------------
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-3">🍽️</div>
+          <p className="text-sm text-gray-500">Loading menu…</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Error state
+  // ---------------------------------------------------------------------------
+  if (error || !venue) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center px-6">
+          <div className="text-4xl mb-3">😕</div>
+          <h1 className="text-lg font-bold text-gray-900 mb-1">
+            {error === 'Venue not found' ? 'Venue not found' : 'Something went wrong'}
+          </h1>
+          <p className="text-sm text-gray-500">
+            {error === 'Venue not found'
+              ? 'This QR code may be outdated or the venue may have been removed.'
+              : 'Please try again in a moment.'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-bold text-gray-900">{DEMO_VENUE_NAME}</h1>
-              <VerifiedBadge verifiedAt={new Date(Date.now() - 86400000 * 2).toISOString()} />
+              <h1 className="text-lg font-bold text-gray-900">{venue.name}</h1>
+              <VerifiedBadge verifiedAt={verification?.verifiedAt ?? null} />
             </div>
             <div className="flex items-center gap-2">
               {profile && (
@@ -161,7 +249,7 @@ export default function MenuPage() {
       {showSavePrompt && (
         <div className="max-w-lg mx-auto">
           <SaveProfilePrompt
-            venueName={DEMO_VENUE_NAME}
+            venueName={venue.name}
             allergenCount={selectedAllergens.length}
             onSave={handleSave}
             onDismiss={handleDismiss}
@@ -170,49 +258,55 @@ export default function MenuPage() {
       )}
 
       <main className="max-w-lg mx-auto px-4 py-6">
-        {categoryOrder.map((cat) => {
-          const dishes = categorised[cat]
-          if (!dishes) return null
-          return (
-            <section key={cat} className="mb-8">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{cat}</h2>
-              <div className="space-y-3">
-                {dishes.map((dish) => (
-                  <div
-                    key={dish.id}
-                    className={`bg-white rounded-xl border p-4 transition-opacity ${
-                      customerMask > 0 && !dish.safe ? 'opacity-40 border-gray-100' : 'border-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-gray-900">{dish.name}</h3>
-                          {customerMask > 0 && dish.safe && (
-                            <span className="text-xs font-medium text-se-green-600 bg-se-green-50 px-1.5 py-0.5 rounded">
-                              Safe
-                            </span>
+        {dishes.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No dishes on the menu yet.</p>
+          </div>
+        ) : (
+          categoryOrder.map((cat) => {
+            const catDishes = categorised[cat]
+            if (!catDishes || catDishes.length === 0) return null
+            return (
+              <section key={cat} className="mb-8">
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{cat}</h2>
+                <div className="space-y-3">
+                  {catDishes.map((dish) => (
+                    <div
+                      key={dish.id}
+                      className={`bg-white rounded-xl border p-4 transition-opacity ${
+                        customerMask > 0 && !dish.safe ? 'opacity-40 border-gray-100' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-gray-900">{dish.name}</h3>
+                            {customerMask > 0 && dish.safe && (
+                              <span className="text-xs font-medium text-se-green-600 bg-se-green-50 px-1.5 py-0.5 rounded">
+                                Safe
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500 mt-0.5">{dish.description}</p>
+                          {dish.allergenMask > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {getIdsFromMask(dish.allergenMask).map((aid) => (
+                                <AllergenBadge key={aid} allergenId={aid} />
+                              ))}
+                            </div>
                           )}
                         </div>
-                        <p className="text-sm text-gray-500 mt-0.5">{dish.description}</p>
-                        {dish.allergenMask > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {getIdsFromMask(dish.allergenMask).map((aid) => (
-                              <AllergenBadge key={aid} allergenId={aid} />
-                            ))}
-                          </div>
-                        )}
+                        <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                          {formatPrice(dish.pricePence)}
+                        </span>
                       </div>
-                      <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-                        {formatPrice(dish.pricePence)}
-                      </span>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )
-        })}
+                  ))}
+                </div>
+              </section>
+            )
+          })
+        )}
       </main>
     </div>
   )
