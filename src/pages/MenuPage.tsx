@@ -14,11 +14,11 @@ interface Dish {
 }
 
 const DEMO_DISHES: Dish[] = [
-  { id: '1', name: 'Margherita Pizza', description: 'Tomato, mozzarella, fresh basil', pricePence: 1095, allergenMask: 0b00000001000100, category: 'Mains' },
-  { id: '2', name: 'Caesar Salad', description: 'Romaine, parmesan, croutons, anchovy dressing', pricePence: 895, allergenMask: 0b00000001001101, category: 'Starters' },
+  { id: '1', name: 'Margherita Pizza', description: 'Tomato, mozzarella, fresh basil', pricePence: 1095, allergenMask: (1 << 1) | (1 << 6), category: 'Mains' },
+  { id: '2', name: 'Caesar Salad', description: 'Romaine, parmesan, croutons, anchovy dressing', pricePence: 895, allergenMask: (1 << 1) | (1 << 3) | (1 << 4) | (1 << 6), category: 'Starters' },
   { id: '3', name: 'Grilled Chicken Breast', description: 'Free-range chicken, seasonal veg, new potatoes', pricePence: 1495, allergenMask: 0, category: 'Mains' },
-  { id: '4', name: 'Chocolate Brownie', description: 'Warm brownie, vanilla ice cream', pricePence: 695, allergenMask: 0b00000001000110, category: 'Desserts' },
-  { id: '5', name: 'Fish & Chips', description: 'Beer-battered cod, triple-cooked chips, mushy peas', pricePence: 1395, allergenMask: 0b00000000001001, category: 'Mains' },
+  { id: '4', name: 'Chocolate Brownie', description: 'Warm brownie, vanilla ice cream', pricePence: 695, allergenMask: (1 << 3) | (1 << 6) | (1 << 1), category: 'Desserts' },
+  { id: '5', name: 'Fish & Chips', description: 'Beer-battered cod, triple-cooked chips, mushy peas', pricePence: 1395, allergenMask: (1 << 1) | (1 << 4), category: 'Mains' },
   { id: '6', name: 'Fruit Sorbet', description: 'Rotating seasonal flavours, dairy-free', pricePence: 595, allergenMask: 0, category: 'Desserts' },
 ]
 
@@ -27,7 +27,7 @@ function formatPrice(pence: number): string {
 }
 
 export default function MenuPage() {
-  const [selectedAllergens, setSelectedAllergens] = useState<number[]>([])
+  const [selectedAllergens, setSelectedAllergens] = useState<string[]>([])
   const [showSelector, setShowSelector] = useState(false)
 
   const customerMask = buildMaskFromIds(selectedAllergens)
