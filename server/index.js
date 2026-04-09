@@ -311,6 +311,38 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
   }
 })
 
+// ---------------------------------------------------------------------------
+// PUBLIC: Contact form submission (stricter rate limit)
+// ---------------------------------------------------------------------------
+app.post('/api/contact', rateLimitProfile(), async (c) => {
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  const name = sanitiseString(body.name, 100)
+  const email = sanitiseString(body.email, 254)
+  const message = sanitiseString(body.message, 2000)
+
+  if (!name) return c.json({ error: 'Name is required' }, 400)
+  if (!email || !email.includes('@')) return c.json({ error: 'Valid email is required' }, 400)
+  if (!message) return c.json({ error: 'Message is required' }, 400)
+
+  try {
+    await sql`
+      INSERT INTO contact_messages (name, email, message)
+      VALUES (${name}, ${email}, ${message})
+    `
+    console.log(`Contact form: ${name} <${email}>`)
+    return c.json({ sent: true }, 201)
+  } catch (err) {
+    console.error('Contact form error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
 // ===========================================================================
 // DASHBOARD ROUTES (authenticated + rate limited by venue)
 // ===========================================================================
