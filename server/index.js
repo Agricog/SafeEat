@@ -3,20 +3,34 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { sql } from './db.js'
+import { requireAuth, enforceVenueAccess } from './middleware/auth.js'
+import {
+  securityHeaders,
+  requestSizeLimit,
+  sanitiseString,
+  sanitisePrice,
+  sanitiseAllergenMask,
+  sanitiseCategory,
+  sanitiseSlug,
+  sanitiseId,
+} from './middleware/security.js'
 
 const app = new Hono()
 
 // ---------------------------------------------------------------------------
-// Middleware
+// Global middleware
 // ---------------------------------------------------------------------------
+app.use('*', securityHeaders())
+app.use('/api/*', requestSizeLimit(102400)) // 100KB max request body
 app.use('/api/*', cors({
-  origin: '*',
+  origin: process.env.CORS_ORIGIN || 'https://safeeat.co.uk',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowHeaders: ['Content-Type'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }))
 
 // ---------------------------------------------------------------------------
-// Health check
+// Health check (public)
 // ---------------------------------------------------------------------------
 app.get('/api/health', async (c) => {
   try {
@@ -27,14 +41,18 @@ app.get('/api/health', async (c) => {
   }
 })
 
+// ===========================================================================
+// PUBLIC ROUTES (no auth required — customer-facing)
+// ===========================================================================
+
 // ---------------------------------------------------------------------------
-// PUBLIC: Get venue menu by slug (customer-facing QR scan endpoint)
+// PUBLIC: Get venue menu by slug
 // ---------------------------------------------------------------------------
 app.get('/api/menu/:slug', async (c) => {
-  const { slug } = c.req.param()
+  const slug = sanitiseSlug(c.req.param('slug'))
+  if (!slug) return c.json({ error: 'Invalid venue slug' }, 400)
 
   try {
-    // Get venue
     const venues = await sql`
       SELECT id, name, slug, address
       FROM venues
@@ -46,7 +64,6 @@ app.get('/api/menu/:slug', async (c) => {
     }
     const venue = venues[0]
 
-    // Get active dishes
     const dishes = await sql`
       SELECT id, name, description, price_pence, category, allergen_mask, sort_order
       FROM dishes
@@ -54,7 +71,6 @@ app.get('/api/menu/:slug', async (c) => {
       ORDER BY sort_order, created_at
     `
 
-    // Get latest verification
     const verifications = await sql`
       SELECT verified_at, type, note
       FROM verification_log
@@ -63,11 +79,11 @@ app.get('/api/menu/:slug', async (c) => {
       LIMIT 1
     `
 
-    // Log scan (no PII)
-    await sql`
+    // Log scan — fire and forget, don't block response
+    sql`
       INSERT INTO menu_scans (venue_id, is_return, profile_saved)
       VALUES (${venue.id}, false, false)
-    `
+    `.catch((err) => console.error('Scan log error:', err))
 
     return c.json({
       venue: {
@@ -98,12 +114,28 @@ app.get('/api/menu/:slug', async (c) => {
 // PUBLIC: Save customer profile
 // ---------------------------------------------------------------------------
 app.post('/api/menu/:slug/profile', async (c) => {
-  const { slug } = c.req.param()
-  const body = await c.req.json()
+  const slug = sanitiseSlug(c.req.param('slug'))
+  if (!slug) return c.json({ error: 'Invalid venue slug' }, 400)
+
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+
   const { identifier, allergenMask, allergenIds, marketingConsent } = body
 
-  if (!identifier || allergenMask === undefined) {
-    return c.json({ error: 'identifier and allergenMask are required' }, 400)
+  // Validate required fields
+  if (!identifier || typeof identifier !== 'string') {
+    return c.json({ error: 'identifier is required' }, 400)
+  }
+  const cleanMask = sanitiseAllergenMask(allergenMask)
+  if (cleanMask === null) {
+    return c.json({ error: 'allergenMask must be 0-16383' }, 400)
+  }
+  if (allergenIds && !Array.isArray(allergenIds)) {
+    return c.json({ error: 'allergenIds must be an array' }, 400)
   }
 
   try {
@@ -115,19 +147,39 @@ app.post('/api/menu/:slug/profile', async (c) => {
     }
     const venueId = venues[0].id
 
-    // Hash the identifier (email/phone) for privacy
-    const hashedId = identifier // In production: use crypto.subtle.digest
+    // Hash the identifier with SHA-256 for privacy
+    const encoder = new TextEncoder()
+    const data = encoder.encode(identifier.trim().toLowerCase())
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const hashedId = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
 
-    // Encrypt allergen IDs
-    const encryptedAllergens = JSON.stringify(allergenIds || [])
+    // Sanitise allergen IDs
+    const cleanAllergenIds = Array.isArray(allergenIds)
+      ? allergenIds.filter((id) => typeof id === 'string' && id.length <= 20).slice(0, 14)
+      : []
 
-    // Upsert profile
+    // Encrypt allergen data using pgcrypto
+    const allergenJson = JSON.stringify(cleanAllergenIds)
+    const encryptionKey = process.env.ALLERGEN_ENCRYPTION_KEY || 'safeeat-default-key-change-me'
+
     const profiles = await sql`
-      INSERT INTO customer_profiles (venue_id, hashed_identifier, encrypted_allergens, allergen_mask, profile_consent, marketing_consent, marketing_consent_at)
-      VALUES (${venueId}, ${hashedId}, ${encryptedAllergens}::bytea, ${allergenMask}, true, ${!!marketingConsent}, ${marketingConsent ? new Date().toISOString() : null})
+      INSERT INTO customer_profiles (
+        venue_id, hashed_identifier, encrypted_allergens, allergen_mask,
+        profile_consent, marketing_consent, marketing_consent_at
+      )
+      VALUES (
+        ${venueId},
+        ${hashedId},
+        pgp_sym_encrypt(${allergenJson}, ${encryptionKey}),
+        ${cleanMask},
+        true,
+        ${!!marketingConsent},
+        ${marketingConsent ? new Date().toISOString() : null}
+      )
       ON CONFLICT (venue_id, hashed_identifier)
       DO UPDATE SET
-        encrypted_allergens = EXCLUDED.encrypted_allergens,
+        encrypted_allergens = pgp_sym_encrypt(${allergenJson}, ${encryptionKey}),
         allergen_mask = EXCLUDED.allergen_mask,
         marketing_consent = EXCLUDED.marketing_consent,
         marketing_consent_at = CASE WHEN EXCLUDED.marketing_consent THEN now() ELSE customer_profiles.marketing_consent_at END,
@@ -143,11 +195,19 @@ app.post('/api/menu/:slug/profile', async (c) => {
   }
 })
 
+// ===========================================================================
+// DASHBOARD ROUTES (authenticated — venue owner only)
+// ===========================================================================
+
+// Apply auth middleware to all /api/dashboard/* routes
+app.use('/api/dashboard/*', requireAuth())
+app.use('/api/dashboard/:venueId/*', enforceVenueAccess())
+
 // ---------------------------------------------------------------------------
 // DASHBOARD: Get venue stats
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/stats', async (c) => {
-  const { venueId } = c.req.param()
+  const venueId = c.get('venueId')
 
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
@@ -175,7 +235,7 @@ app.get('/api/dashboard/:venueId/stats', async (c) => {
 // DASHBOARD: Get dishes for venue
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/dishes', async (c) => {
-  const { venueId } = c.req.param()
+  const venueId = c.get('venueId')
 
   try {
     const dishes = await sql`
@@ -195,18 +255,30 @@ app.get('/api/dashboard/:venueId/dishes', async (c) => {
 // DASHBOARD: Create dish
 // ---------------------------------------------------------------------------
 app.post('/api/dashboard/:venueId/dishes', async (c) => {
-  const { venueId } = c.req.param()
-  const body = await c.req.json()
-  const { name, description, pricePence, category, allergenMask } = body
+  const venueId = c.get('venueId')
 
-  if (!name || pricePence === undefined || !category) {
-    return c.json({ error: 'name, pricePence, and category are required' }, 400)
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
   }
+
+  const name = sanitiseString(body.name, 200)
+  const description = sanitiseString(body.description, 500)
+  const pricePence = sanitisePrice(body.pricePence)
+  const category = sanitiseCategory(body.category)
+  const allergenMask = sanitiseAllergenMask(body.allergenMask ?? 0)
+
+  if (!name) return c.json({ error: 'Dish name is required (max 200 chars)' }, 400)
+  if (pricePence === null) return c.json({ error: 'Price must be 0-9999999 pence' }, 400)
+  if (!category) return c.json({ error: 'Category must be: Starters, Mains, Desserts, Sides, or Drinks' }, 400)
+  if (allergenMask === null) return c.json({ error: 'Allergen mask must be 0-16383' }, 400)
 
   try {
     const dishes = await sql`
       INSERT INTO dishes (venue_id, name, description, price_pence, category, allergen_mask)
-      VALUES (${venueId}, ${name}, ${description || ''}, ${pricePence}, ${category}, ${allergenMask || 0})
+      VALUES (${venueId}, ${name}, ${description}, ${pricePence}, ${category}, ${allergenMask})
       RETURNING id, name, description, price_pence, category, allergen_mask
     `
     return c.json({ dish: dishes[0] }, 201)
@@ -220,20 +292,52 @@ app.post('/api/dashboard/:venueId/dishes', async (c) => {
 // DASHBOARD: Update dish
 // ---------------------------------------------------------------------------
 app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
-  const { venueId, dishId } = c.req.param()
-  const body = await c.req.json()
-  const { name, description, pricePence, category, allergenMask, active } = body
+  const venueId = c.get('venueId')
+  const dishId = sanitiseId(c.req.param('dishId'))
+  if (!dishId) return c.json({ error: 'Invalid dish ID' }, 400)
+
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  // Only sanitise fields that are present in the request
+  const updates = {}
+  if (body.name !== undefined) {
+    updates.name = sanitiseString(body.name, 200)
+    if (!updates.name) return c.json({ error: 'Dish name cannot be empty' }, 400)
+  }
+  if (body.description !== undefined) {
+    updates.description = sanitiseString(body.description, 500)
+  }
+  if (body.pricePence !== undefined) {
+    updates.pricePence = sanitisePrice(body.pricePence)
+    if (updates.pricePence === null) return c.json({ error: 'Price must be 0-9999999 pence' }, 400)
+  }
+  if (body.category !== undefined) {
+    updates.category = sanitiseCategory(body.category)
+    if (!updates.category) return c.json({ error: 'Invalid category' }, 400)
+  }
+  if (body.allergenMask !== undefined) {
+    updates.allergenMask = sanitiseAllergenMask(body.allergenMask)
+    if (updates.allergenMask === null) return c.json({ error: 'Allergen mask must be 0-16383' }, 400)
+  }
+  if (body.active !== undefined) {
+    updates.active = !!body.active
+  }
 
   try {
     const dishes = await sql`
       UPDATE dishes
       SET
-        name = COALESCE(${name}, name),
-        description = COALESCE(${description}, description),
-        price_pence = COALESCE(${pricePence}, price_pence),
-        category = COALESCE(${category}, category),
-        allergen_mask = COALESCE(${allergenMask}, allergen_mask),
-        active = COALESCE(${active}, active)
+        name = COALESCE(${updates.name ?? null}, name),
+        description = COALESCE(${updates.description ?? null}, description),
+        price_pence = COALESCE(${updates.pricePence ?? null}, price_pence),
+        category = COALESCE(${updates.category ?? null}, category),
+        allergen_mask = COALESCE(${updates.allergenMask ?? null}, allergen_mask),
+        active = COALESCE(${updates.active ?? null}, active)
       WHERE id = ${dishId} AND venue_id = ${venueId}
       RETURNING id, name, description, price_pence, category, allergen_mask, active
     `
@@ -251,10 +355,18 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
 // DASHBOARD: Delete dish
 // ---------------------------------------------------------------------------
 app.delete('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
-  const { venueId, dishId } = c.req.param()
+  const venueId = c.get('venueId')
+  const dishId = sanitiseId(c.req.param('dishId'))
+  if (!dishId) return c.json({ error: 'Invalid dish ID' }, 400)
 
   try {
-    await sql`DELETE FROM dishes WHERE id = ${dishId} AND venue_id = ${venueId}`
+    const result = await sql`
+      DELETE FROM dishes WHERE id = ${dishId} AND venue_id = ${venueId}
+      RETURNING id
+    `
+    if (result.length === 0) {
+      return c.json({ error: 'Dish not found' }, 404)
+    }
     return c.json({ deleted: true })
   } catch (err) {
     console.error('Dish delete error:', err)
@@ -266,7 +378,7 @@ app.delete('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
 // DASHBOARD: Verification log
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/verifications', async (c) => {
-  const { venueId } = c.req.param()
+  const venueId = c.get('venueId')
 
   try {
     const log = await sql`
@@ -284,9 +396,17 @@ app.get('/api/dashboard/:venueId/verifications', async (c) => {
 })
 
 app.post('/api/dashboard/:venueId/verifications', async (c) => {
-  const { venueId } = c.req.param()
-  const body = await c.req.json()
-  const { type, note } = body
+  const venueId = c.get('venueId')
+
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  const { type } = body
+  const note = sanitiseString(body.note, 500)
 
   if (!type || !['confirmed', 'updated'].includes(type)) {
     return c.json({ error: 'type must be confirmed or updated' }, 400)
@@ -295,7 +415,7 @@ app.post('/api/dashboard/:venueId/verifications', async (c) => {
   try {
     const entries = await sql`
       INSERT INTO verification_log (venue_id, type, note)
-      VALUES (${venueId}, ${type}, ${note || ''})
+      VALUES (${venueId}, ${type}, ${note})
       RETURNING id, type, note, verified_at
     `
     return c.json({ verification: entries[0] }, 201)
@@ -306,12 +426,13 @@ app.post('/api/dashboard/:venueId/verifications', async (c) => {
 })
 
 // ---------------------------------------------------------------------------
-// DASHBOARD: Customer profiles
+// DASHBOARD: Customer profiles (read-only — no PII exposed)
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/customers', async (c) => {
-  const { venueId } = c.req.param()
+  const venueId = c.get('venueId')
 
   try {
+    // Never return encrypted_allergens or hashed_identifier to the dashboard
     const profiles = await sql`
       SELECT id, allergen_mask, marketing_consent, last_visit_at, visit_count, created_at
       FROM customer_profiles
@@ -325,17 +446,19 @@ app.get('/api/dashboard/:venueId/customers', async (c) => {
   }
 })
 
-// ---------------------------------------------------------------------------
-// Static files (SPA)
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// STATIC FILES (SPA fallback)
+// ===========================================================================
 app.use('/*', serveStatic({ root: './dist' }))
 app.get('/*', serveStatic({ root: './dist', path: 'index.html' }))
 
-// ---------------------------------------------------------------------------
-// Start server
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// START SERVER
+// ===========================================================================
 const port = parseInt(process.env.PORT || '3000')
 
 serve({ fetch: app.fetch, port }, () => {
   console.log(`SafeEat API running on port ${port}`)
+  console.log(`Auth: Clerk JWT verification enabled on /api/dashboard/*`)
+  console.log(`Security: headers, CORS, size limits, input sanitisation active`)
 })
