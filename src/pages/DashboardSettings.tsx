@@ -1,43 +1,98 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import QRCodeDisplay from '../components/QRCodeDisplay'
+import { useApi } from '../lib/api'
+import { useVenue } from '../lib/VenueContext'
 
-interface VenueSettings {
+interface VenueDetails {
   name: string
   address: string
   phone: string
   email: string
 }
 
-const DEMO_VENUE: VenueSettings = {
-  name: 'The Demo Café',
-  address: '42 High Street, London, E1 6PQ',
-  phone: '020 7946 0958',
-  email: 'hello@thedemocafe.co.uk',
-}
-
 export default function DashboardSettings() {
-  const [venue, setVenue] = useState<VenueSettings>(DEMO_VENUE)
+  const { request } = useApi()
+  const { venueId, venueSlug } = useVenue()
+
+  const [venue, setVenue] = useState<VenueDetails | null>(null)
+  const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState<VenueSettings>(DEMO_VENUE)
+  const [draft, setDraft] = useState<VenueDetails>({ name: '', address: '', phone: '', email: '' })
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const menuUrl = `${window.location.origin}/menu/demo`
+  const menuUrl = `${window.location.origin}/menu/${venueSlug}`
 
-  const handleSave = () => {
-    setVenue(draft)
-    setEditing(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+  useEffect(() => {
+    let cancelled = false
+    request<{ venue: { name: string; address: string; phone: string; email: string } }>(
+      `/api/dashboard/${venueId}/venue`
+    )
+      .then((data) => {
+        if (cancelled) return
+        const v = {
+          name: data.venue.name || '',
+          address: data.venue.address || '',
+          phone: data.venue.phone || '',
+          email: data.venue.email || '',
+        }
+        setVenue(v)
+        setDraft(v)
+      })
+      .catch((err) => { if (!cancelled) setError(err.message) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [request, venueId])
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await request<{ venue: { name: string; address: string; phone: string; email: string } }>(
+        `/api/dashboard/${venueId}/venue`,
+        { method: 'PUT', body: draft }
+      )
+      const v = {
+        name: res.venue.name || '',
+        address: res.venue.address || '',
+        phone: res.venue.phone || '',
+        email: res.venue.email || '',
+      }
+      setVenue(v)
+      setDraft(v)
+      setEditing(false)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleCancel = () => {
-    setDraft(venue)
+    if (venue) setDraft(venue)
     setEditing(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-6 h-6 border-2 border-se-green-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (
     <div>
       <h2 className="text-xl font-bold text-gray-900 mb-6">Settings</h2>
+
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {saved && (
         <div className="mb-4 px-4 py-3 rounded-xl bg-se-green-50 border border-se-green-200 flex items-center gap-2">
@@ -92,9 +147,10 @@ export default function DashboardSettings() {
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={handleSave}
-                    className="flex-1 px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors"
+                    disabled={saving}
+                    className="flex-1 px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors disabled:opacity-50"
                   >
-                    Save
+                    {saving ? 'Saving…' : 'Save'}
                   </button>
                   <button
                     onClick={handleCancel}
@@ -109,19 +165,19 @@ export default function DashboardSettings() {
                 <div className="space-y-2 mb-4">
                   <div>
                     <p className="text-xs text-gray-400">Venue name</p>
-                    <p className="text-sm font-medium text-gray-900">{venue.name}</p>
+                    <p className="text-sm font-medium text-gray-900">{venue?.name || '—'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400">Address</p>
-                    <p className="text-sm text-gray-700">{venue.address}</p>
+                    <p className="text-sm text-gray-700">{venue?.address || '—'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400">Phone</p>
-                    <p className="text-sm text-gray-700">{venue.phone}</p>
+                    <p className="text-sm text-gray-700">{venue?.phone || '—'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400">Email</p>
-                    <p className="text-sm text-gray-700">{venue.email}</p>
+                    <p className="text-sm text-gray-700">{venue?.email || '—'}</p>
                   </div>
                 </div>
                 <button
@@ -186,9 +242,7 @@ export default function DashboardSettings() {
                 Download QR code (PNG)
               </button>
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(menuUrl)
-                }}
+                onClick={() => navigator.clipboard.writeText(menuUrl)}
                 className="w-full px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
               >
                 Copy menu link
