@@ -4,17 +4,9 @@ import MenuPage from './pages/MenuPage'
 import DashboardLayout from './pages/DashboardLayout'
 import DashboardOverview from './pages/DashboardOverview'
 import DashboardMenu from './pages/DashboardMenu'
-import DashboardVerification from './pages/DashboardVerification'
 import DashboardCustomers from './pages/DashboardCustomers'
-
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div>
-      <h2 className="text-xl font-bold text-gray-900 mb-2">{title}</h2>
-      <p className="text-sm text-gray-500">Coming in next batch.</p>
-    </div>
-  )
-}
+import DashboardVerification from './pages/DashboardVerification'
+import DashboardSettings from './pages/DashboardSettings'
 
 export default function App() {
   return (
@@ -26,7 +18,7 @@ export default function App() {
         <Route path="menu" element={<DashboardMenu />} />
         <Route path="customers" element={<DashboardCustomers />} />
         <Route path="verification" element={<DashboardVerification />} />
-        <Route path="settings" element={<PlaceholderPage title="Settings" />} />
+        <Route path="settings" element={<DashboardSettings />} />
       </Route>
     </Routes>
   )
