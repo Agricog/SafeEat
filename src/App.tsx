@@ -3,6 +3,7 @@ import HomePage from './pages/HomePage'
 import MenuPage from './pages/MenuPage'
 import DashboardLayout from './pages/DashboardLayout'
 import DashboardOverview from './pages/DashboardOverview'
+import DashboardMenu from './pages/DashboardMenu'
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -20,7 +21,7 @@ export default function App() {
       <Route path="/menu/:venueId" element={<MenuPage />} />
       <Route path="/dashboard" element={<DashboardLayout />}>
         <Route index element={<DashboardOverview />} />
-        <Route path="menu" element={<PlaceholderPage title="Menu Management" />} />
+        <Route path="menu" element={<DashboardMenu />} />
         <Route path="customers" element={<PlaceholderPage title="Customers" />} />
         <Route path="verification" element={<PlaceholderPage title="Verification" />} />
         <Route path="settings" element={<PlaceholderPage title="Settings" />} />
