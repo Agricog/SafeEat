@@ -15,6 +15,13 @@ import {
   sanitiseId,
 } from './middleware/security.js'
 import { rateLimitPublic, rateLimitDashboard, rateLimitProfile } from './middleware/rateLimit.js'
+import {
+  getOrCreateCustomer,
+  createCheckoutSession,
+  createPortalSession,
+  getSubscriptionStatus,
+  verifyWebhookSignature,
+} from './stripe.js'
 
 const app = new Hono()
 
@@ -26,7 +33,7 @@ app.use('/api/*', requestSizeLimit(102400))
 app.use('/api/*', cors({
   origin: process.env.CORS_ORIGIN || 'https://safeeat.co.uk',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowHeaders: ['Content-Type', 'Authorization', 'Stripe-Signature'],
   credentials: true,
 }))
 
@@ -40,6 +47,119 @@ app.get('/api/health', async (c) => {
   } catch (err) {
     return c.json({ status: 'error', db: 'disconnected' }, 500)
   }
+})
+
+// ===========================================================================
+// STRIPE WEBHOOK (public, no auth, raw body — must be before auth middleware)
+// ===========================================================================
+app.post('/api/webhooks/stripe', async (c) => {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  if (!webhookSecret) {
+    console.error('STRIPE_WEBHOOK_SECRET not set')
+    return c.json({ error: 'Webhook not configured' }, 500)
+  }
+
+  const sigHeader = c.req.header('Stripe-Signature')
+  if (!sigHeader) {
+    return c.json({ error: 'Missing signature' }, 400)
+  }
+
+  let rawBody
+  try {
+    rawBody = await c.req.text()
+  } catch {
+    return c.json({ error: 'Invalid body' }, 400)
+  }
+
+  const valid = await verifyWebhookSignature(rawBody, sigHeader, webhookSecret)
+  if (!valid) {
+    console.error('Stripe webhook signature verification failed')
+    return c.json({ error: 'Invalid signature' }, 400)
+  }
+
+  let event
+  try {
+    event = JSON.parse(rawBody)
+  } catch {
+    return c.json({ error: 'Invalid JSON' }, 400)
+  }
+
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object
+        const venueId = session.metadata?.venue_id
+        const subscriptionId = session.subscription
+        const customerId = session.customer
+
+        if (venueId && subscriptionId) {
+          await sql`
+            UPDATE venues
+            SET stripe_subscription_id = ${subscriptionId},
+                stripe_customer_id = ${customerId},
+                subscription_status = 'active'
+            WHERE id = ${venueId}
+          `
+          console.log(`Subscription activated for venue ${venueId}`)
+        }
+        break
+      }
+
+      case 'customer.subscription.updated': {
+        const sub = event.data.object
+        const venueId = sub.metadata?.venue_id
+        const status = sub.status
+
+        if (venueId) {
+          await sql`
+            UPDATE venues
+            SET subscription_status = ${status}
+            WHERE id = ${venueId}
+          `
+          console.log(`Subscription ${status} for venue ${venueId}`)
+        }
+        break
+      }
+
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object
+        const venueId = sub.metadata?.venue_id
+
+        if (venueId) {
+          await sql`
+            UPDATE venues
+            SET subscription_status = 'canceled',
+                stripe_subscription_id = NULL
+            WHERE id = ${venueId}
+          `
+          console.log(`Subscription canceled for venue ${venueId}`)
+        }
+        break
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object
+        const subId = invoice.subscription
+        if (subId) {
+          await sql`
+            UPDATE venues
+            SET subscription_status = 'past_due'
+            WHERE stripe_subscription_id = ${subId}
+          `
+          console.log(`Payment failed for subscription ${subId}`)
+        }
+        break
+      }
+
+      default:
+        break
+    }
+  } catch (err) {
+    console.error('Webhook processing error:', err)
+    return c.json({ error: 'Processing error' }, 500)
+  }
+
+  return c.json({ received: true })
 })
 
 // ===========================================================================
@@ -538,6 +658,77 @@ app.put('/api/dashboard/:venueId/venue', async (c) => {
   }
 })
 
+// ---------------------------------------------------------------------------
+// DASHBOARD: Subscription status
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/:venueId/subscription', async (c) => {
+  const venueId = c.get('venueId')
+
+  try {
+    const sub = await getSubscriptionStatus(venueId, sql)
+    return c.json(sub)
+  } catch (err) {
+    console.error('Subscription status error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// DASHBOARD: Create Stripe Checkout session
+// ---------------------------------------------------------------------------
+app.post('/api/dashboard/:venueId/billing/checkout', async (c) => {
+  const venueId = c.get('venueId')
+
+  try {
+    const venues = await sql`
+      SELECT name, email FROM venues WHERE id = ${venueId} LIMIT 1
+    `
+    if (venues.length === 0) return c.json({ error: 'Venue not found' }, 404)
+
+    const customerId = await getOrCreateCustomer(venueId, venues[0].name, venues[0].email, sql)
+
+    const origin = process.env.CORS_ORIGIN || 'https://safeeat.co.uk'
+    const session = await createCheckoutSession(
+      customerId,
+      venueId,
+      `${origin}/dashboard/settings?billing=success`,
+      `${origin}/dashboard/settings?billing=canceled`
+    )
+
+    return c.json({ url: session.url })
+  } catch (err) {
+    console.error('Checkout session error:', err)
+    return c.json({ error: err.message || 'Internal server error' }, 500)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// DASHBOARD: Create Stripe Customer Portal session
+// ---------------------------------------------------------------------------
+app.post('/api/dashboard/:venueId/billing/portal', async (c) => {
+  const venueId = c.get('venueId')
+
+  try {
+    const venues = await sql`
+      SELECT stripe_customer_id, name, email FROM venues WHERE id = ${venueId} LIMIT 1
+    `
+    if (venues.length === 0) return c.json({ error: 'Venue not found' }, 404)
+
+    let customerId = venues[0].stripe_customer_id
+    if (!customerId) {
+      customerId = await getOrCreateCustomer(venueId, venues[0].name, venues[0].email, sql)
+    }
+
+    const origin = process.env.CORS_ORIGIN || 'https://safeeat.co.uk'
+    const session = await createPortalSession(customerId, `${origin}/dashboard/settings`)
+
+    return c.json({ url: session.url })
+  } catch (err) {
+    console.error('Portal session error:', err)
+    return c.json({ error: err.message || 'Internal server error' }, 500)
+  }
+})
+
 // ===========================================================================
 // STATIC FILES (SPA fallback)
 // ===========================================================================
@@ -554,4 +745,5 @@ serve({ fetch: app.fetch, port }, () => {
   console.log(`Auth: Clerk JWT verification enabled on /api/dashboard/*`)
   console.log(`Security: headers, CORS, size limits, input sanitisation active`)
   console.log(`Rate limiting: Upstash Redis ${process.env.UPSTASH_REDIS_REST_URL ? 'connected' : 'disabled (no env vars)'}`)
+  console.log(`Stripe: ${process.env.STRIPE_SECRET_KEY ? 'configured' : 'not configured'}`)
 })
