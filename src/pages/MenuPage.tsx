@@ -1,8 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import AllergenSelector from '../components/AllergenSelector'
 import AllergenBadge from '../components/AllergenBadge'
 import VerifiedBadge from '../components/VerifiedBadge'
+import SaveProfilePrompt from '../components/SaveProfilePrompt'
 import { isDishSafe, buildMaskFromIds, getIdsFromMask } from '../lib/allergens'
+import { useLocalProfile } from '../hooks/useLocalProfile'
 
 interface Dish {
   id: string
@@ -12,6 +14,9 @@ interface Dish {
   allergenMask: number
   category: string
 }
+
+const DEMO_VENUE_ID = 'demo'
+const DEMO_VENUE_NAME = 'The Demo Café'
 
 const DEMO_DISHES: Dish[] = [
   { id: '1', name: 'Margherita Pizza', description: 'Tomato, mozzarella, fresh basil', pricePence: 1095, allergenMask: (1 << 1) | (1 << 6), category: 'Mains' },
@@ -27,8 +32,49 @@ function formatPrice(pence: number): string {
 }
 
 export default function MenuPage() {
-  const [selectedAllergens, setSelectedAllergens] = useState<string[]>([])
+  const { profile, saveProfile, deleteProfile } = useLocalProfile(DEMO_VENUE_ID)
+
+  const [selectedAllergens, setSelectedAllergens] = useState<string[]>(
+    profile?.allergenIds ?? []
+  )
   const [showSelector, setShowSelector] = useState(false)
+  const [showSavePrompt, setShowSavePrompt] = useState(false)
+  const [promptDismissed, setPromptDismissed] = useState(false)
+  const [savedConfirmation, setSavedConfirmation] = useState(!!profile)
+
+  // Show save prompt after user selects allergens and closes the selector
+  useEffect(() => {
+    if (
+      !showSelector &&
+      selectedAllergens.length > 0 &&
+      !profile &&
+      !promptDismissed &&
+      !savedConfirmation
+    ) {
+      const timer = setTimeout(() => setShowSavePrompt(true), 500)
+      return () => clearTimeout(timer)
+    }
+    setShowSavePrompt(false)
+  }, [showSelector, selectedAllergens.length, profile, promptDismissed, savedConfirmation])
+
+  const handleSave = (marketingConsent: boolean) => {
+    saveProfile(selectedAllergens, DEMO_VENUE_NAME, marketingConsent)
+    setShowSavePrompt(false)
+    setSavedConfirmation(true)
+    setTimeout(() => setSavedConfirmation(false), 3000)
+  }
+
+  const handleDismiss = () => {
+    setShowSavePrompt(false)
+    setPromptDismissed(true)
+  }
+
+  const handleDeleteProfile = () => {
+    deleteProfile()
+    setSelectedAllergens([])
+    setPromptDismissed(false)
+    setSavedConfirmation(false)
+  }
 
   const customerMask = buildMaskFromIds(selectedAllergens)
 
@@ -50,21 +96,32 @@ export default function MenuPage() {
         <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-bold text-gray-900">The Demo Café</h1>
+              <h1 className="text-lg font-bold text-gray-900">{DEMO_VENUE_NAME}</h1>
               <VerifiedBadge verifiedAt={new Date(Date.now() - 86400000 * 2).toISOString()} />
             </div>
-            <button
-              onClick={() => setShowSelector(!showSelector)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                selectedAllergens.length > 0
-                  ? 'bg-se-green-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {selectedAllergens.length > 0
-                ? `${selectedAllergens.length} allergen${selectedAllergens.length > 1 ? 's' : ''}`
-                : 'Set allergies'}
-            </button>
+            <div className="flex items-center gap-2">
+              {profile && (
+                <button
+                  onClick={handleDeleteProfile}
+                  className="px-2 py-1 rounded-full text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  title="Delete saved profile"
+                >
+                  ✕ Profile
+                </button>
+              )}
+              <button
+                onClick={() => setShowSelector(!showSelector)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  selectedAllergens.length > 0
+                    ? 'bg-se-green-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {selectedAllergens.length > 0
+                  ? `${selectedAllergens.length} allergen${selectedAllergens.length > 1 ? 's' : ''}`
+                  : 'Set allergies'}
+              </button>
+            </div>
           </div>
 
           {showSelector && (
@@ -79,6 +136,30 @@ export default function MenuPage() {
           )}
         </div>
       </header>
+
+      {/* Saved confirmation toast */}
+      {savedConfirmation && !showSavePrompt && (
+        <div className="max-w-lg mx-auto">
+          <div className="mx-4 mt-4 px-4 py-3 rounded-xl bg-se-green-50 border border-se-green-200 flex items-center gap-2">
+            <span className="text-se-green-600">✓</span>
+            <p className="text-sm text-se-green-700 font-medium">
+              Profile saved — your menu is personalised
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Save profile consent prompt */}
+      {showSavePrompt && (
+        <div className="max-w-lg mx-auto">
+          <SaveProfilePrompt
+            venueName={DEMO_VENUE_NAME}
+            allergenCount={selectedAllergens.length}
+            onSave={handleSave}
+            onDismiss={handleDismiss}
+          />
+        </div>
+      )}
 
       <main className="max-w-lg mx-auto px-4 py-6">
         {categoryOrder.map((cat) => {
