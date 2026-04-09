@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage'
 import MenuPage from './pages/MenuPage'
 import PrivacyPage from './pages/PrivacyPage'
 import TermsPage from './pages/TermsPage'
+import ContactPage from './pages/ContactPage'
 import DashboardLayout from './pages/DashboardLayout'
 import DashboardOverview from './pages/DashboardOverview'
 import DashboardMenu from './pages/DashboardMenu'
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/menu/:venueId" element={<MenuPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route
           path="/dashboard"
           element={
