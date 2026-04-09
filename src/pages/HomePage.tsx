@@ -347,9 +347,9 @@ export default function HomePage() {
                 <Link to="/terms" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
                   Terms of Service
                 </Link>
-                <a href="mailto:hello@safeeat.co.uk" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
-                  Contact
-                </a>
+                <Link to="/contact" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
+  Contact
+</Link>
               </nav>
             </div>
           </div>
