@@ -14,6 +14,7 @@ import {
   sanitiseSlug,
   sanitiseId,
 } from './middleware/security.js'
+import { rateLimitPublic, rateLimitDashboard, rateLimitProfile } from './middleware/rateLimit.js'
 
 const app = new Hono()
 
@@ -21,7 +22,7 @@ const app = new Hono()
 // Global middleware
 // ---------------------------------------------------------------------------
 app.use('*', securityHeaders())
-app.use('/api/*', requestSizeLimit(102400)) // 100KB max request body
+app.use('/api/*', requestSizeLimit(102400))
 app.use('/api/*', cors({
   origin: process.env.CORS_ORIGIN || 'https://safeeat.co.uk',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -30,7 +31,7 @@ app.use('/api/*', cors({
 }))
 
 // ---------------------------------------------------------------------------
-// Health check (public)
+// Health check (public, no rate limit)
 // ---------------------------------------------------------------------------
 app.get('/api/health', async (c) => {
   try {
@@ -42,13 +43,13 @@ app.get('/api/health', async (c) => {
 })
 
 // ===========================================================================
-// PUBLIC ROUTES (no auth required — customer-facing)
+// PUBLIC ROUTES (rate limited by IP)
 // ===========================================================================
 
 // ---------------------------------------------------------------------------
 // PUBLIC: Get venue menu by slug
 // ---------------------------------------------------------------------------
-app.get('/api/menu/:slug', async (c) => {
+app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
   const slug = sanitiseSlug(c.req.param('slug'))
   if (!slug) return c.json({ error: 'Invalid venue slug' }, 400)
 
@@ -79,7 +80,6 @@ app.get('/api/menu/:slug', async (c) => {
       LIMIT 1
     `
 
-    // Log scan — fire and forget, don't block response
     sql`
       INSERT INTO menu_scans (venue_id, is_return, profile_saved)
       VALUES (${venue.id}, false, false)
@@ -111,9 +111,9 @@ app.get('/api/menu/:slug', async (c) => {
 })
 
 // ---------------------------------------------------------------------------
-// PUBLIC: Save customer profile
+// PUBLIC: Save customer profile (stricter rate limit)
 // ---------------------------------------------------------------------------
-app.post('/api/menu/:slug/profile', async (c) => {
+app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
   const slug = sanitiseSlug(c.req.param('slug'))
   if (!slug) return c.json({ error: 'Invalid venue slug' }, 400)
 
@@ -126,7 +126,6 @@ app.post('/api/menu/:slug/profile', async (c) => {
 
   const { identifier, allergenMask, allergenIds, marketingConsent } = body
 
-  // Validate required fields
   if (!identifier || typeof identifier !== 'string') {
     return c.json({ error: 'identifier is required' }, 400)
   }
@@ -147,19 +146,16 @@ app.post('/api/menu/:slug/profile', async (c) => {
     }
     const venueId = venues[0].id
 
-    // Hash the identifier with SHA-256 for privacy
     const encoder = new TextEncoder()
     const data = encoder.encode(identifier.trim().toLowerCase())
     const hashBuffer = await crypto.subtle.digest('SHA-256', data)
     const hashArray = Array.from(new Uint8Array(hashBuffer))
     const hashedId = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
 
-    // Sanitise allergen IDs
     const cleanAllergenIds = Array.isArray(allergenIds)
       ? allergenIds.filter((id) => typeof id === 'string' && id.length <= 20).slice(0, 14)
       : []
 
-    // Encrypt allergen data using pgcrypto
     const allergenJson = JSON.stringify(cleanAllergenIds)
     const encryptionKey = process.env.ALLERGEN_ENCRYPTION_KEY || 'safeeat-default-key-change-me'
 
@@ -196,12 +192,12 @@ app.post('/api/menu/:slug/profile', async (c) => {
 })
 
 // ===========================================================================
-// DASHBOARD ROUTES (authenticated — venue owner only)
+// DASHBOARD ROUTES (authenticated + rate limited by venue)
 // ===========================================================================
 
-// Apply auth middleware to all /api/dashboard/* routes
 app.use('/api/dashboard/*', requireAuth())
 app.use('/api/dashboard/:venueId/*', enforceVenueAccess())
+app.use('/api/dashboard/*', rateLimitDashboard())
 
 // ---------------------------------------------------------------------------
 // DASHBOARD: Get venue stats
@@ -303,7 +299,6 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
     return c.json({ error: 'Invalid JSON body' }, 400)
   }
 
-  // Only sanitise fields that are present in the request
   const updates = {}
   if (body.name !== undefined) {
     updates.name = sanitiseString(body.name, 200)
@@ -432,7 +427,6 @@ app.get('/api/dashboard/:venueId/customers', async (c) => {
   const venueId = c.get('venueId')
 
   try {
-    // Never return encrypted_allergens or hashed_identifier to the dashboard
     const profiles = await sql`
       SELECT id, allergen_mask, marketing_consent, last_visit_at, visit_count, created_at
       FROM customer_profiles
@@ -461,4 +455,5 @@ serve({ fetch: app.fetch, port }, () => {
   console.log(`SafeEat API running on port ${port}`)
   console.log(`Auth: Clerk JWT verification enabled on /api/dashboard/*`)
   console.log(`Security: headers, CORS, size limits, input sanitisation active`)
+  console.log(`Rate limiting: Upstash Redis ${process.env.UPSTASH_REDIS_REST_URL ? 'connected' : 'disabled (no env vars)'}`)
 })
