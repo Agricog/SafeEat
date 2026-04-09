@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AllergenBadge from '../components/AllergenBadge'
 import DishForm, { type DishFormData } from '../components/DishForm'
 import { buildMaskFromIds, getIdsFromMask } from '../lib/allergens'
+import { useApi } from '../lib/api'
+import { useVenue } from '../lib/VenueContext'
 
 interface Dish {
   id: string
@@ -10,16 +12,8 @@ interface Dish {
   pricePence: number
   allergenMask: number
   category: string
+  active: boolean
 }
-
-const INITIAL_DISHES: Dish[] = [
-  { id: '1', name: 'Margherita Pizza', description: 'Tomato, mozzarella, fresh basil', pricePence: 1095, allergenMask: (1 << 1) | (1 << 6), category: 'Mains' },
-  { id: '2', name: 'Caesar Salad', description: 'Romaine, parmesan, croutons, anchovy dressing', pricePence: 895, allergenMask: (1 << 1) | (1 << 3) | (1 << 4) | (1 << 6), category: 'Starters' },
-  { id: '3', name: 'Grilled Chicken Breast', description: 'Free-range chicken, seasonal veg, new potatoes', pricePence: 1495, allergenMask: 0, category: 'Mains' },
-  { id: '4', name: 'Chocolate Brownie', description: 'Warm brownie, vanilla ice cream', pricePence: 695, allergenMask: (1 << 3) | (1 << 6) | (1 << 1), category: 'Desserts' },
-  { id: '5', name: 'Fish & Chips', description: 'Beer-battered cod, triple-cooked chips, mushy peas', pricePence: 1395, allergenMask: (1 << 1) | (1 << 4), category: 'Mains' },
-  { id: '6', name: 'Fruit Sorbet', description: 'Rotating seasonal flavours, dairy-free', pricePence: 595, allergenMask: 0, category: 'Desserts' },
-]
 
 function formatPrice(pence: number): string {
   return `£${(pence / 100).toFixed(2)}`
@@ -35,40 +29,129 @@ function dishToFormData(dish: Dish): DishFormData {
   }
 }
 
-function formDataToDish(data: DishFormData, id: string): Dish {
-  return {
-    id,
-    name: data.name.trim(),
-    description: data.description.trim(),
-    pricePence: Math.round(parseFloat(data.pricePounds) * 100),
-    allergenMask: buildMaskFromIds(data.allergenIds),
-    category: data.category,
-  }
-}
-
 export default function DashboardMenu() {
-  const [dishes, setDishes] = useState<Dish[]>(INITIAL_DISHES)
+  const { request } = useApi()
+  const { venueId } = useVenue()
+
+  const [dishes, setDishes] = useState<Dish[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    request<{ dishes: Array<{ id: string; name: string; description: string; price_pence: number; category: string; allergen_mask: number; active: boolean }> }>(
+      `/api/dashboard/${venueId}/dishes`
+    )
+      .then((data) => {
+        if (cancelled) return
+        setDishes(
+          data.dishes.map((d) => ({
+            id: d.id,
+            name: d.name,
+            description: d.description,
+            pricePence: d.price_pence,
+            allergenMask: d.allergen_mask,
+            category: d.category,
+            active: d.active,
+          }))
+        )
+      })
+      .catch((err) => { if (!cancelled) setError(err.message) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [request, venueId])
+
+  const handleAdd = async (data: DishFormData) => {
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await request<{ dish: { id: string; name: string; description: string; price_pence: number; category: string; allergen_mask: number } }>(
+        `/api/dashboard/${venueId}/dishes`,
+        {
+          method: 'POST',
+          body: {
+            name: data.name.trim(),
+            description: data.description.trim(),
+            pricePence: Math.round(parseFloat(data.pricePounds) * 100),
+            category: data.category,
+            allergenMask: buildMaskFromIds(data.allergenIds),
+          },
+        }
+      )
+      setDishes([...dishes, {
+        id: res.dish.id,
+        name: res.dish.name,
+        description: res.dish.description,
+        pricePence: res.dish.price_pence,
+        allergenMask: res.dish.allergen_mask,
+        category: res.dish.category,
+        active: true,
+      }])
+      setShowAddForm(false)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleEdit = async (data: DishFormData) => {
+    if (!editingId) return
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await request<{ dish: { id: string; name: string; description: string; price_pence: number; category: string; allergen_mask: number; active: boolean } }>(
+        `/api/dashboard/${venueId}/dishes/${editingId}`,
+        {
+          method: 'PUT',
+          body: {
+            name: data.name.trim(),
+            description: data.description.trim(),
+            pricePence: Math.round(parseFloat(data.pricePounds) * 100),
+            category: data.category,
+            allergenMask: buildMaskFromIds(data.allergenIds),
+          },
+        }
+      )
+      setDishes(dishes.map((d) =>
+        d.id === editingId
+          ? { id: res.dish.id, name: res.dish.name, description: res.dish.description, pricePence: res.dish.price_pence, allergenMask: res.dish.allergen_mask, category: res.dish.category, active: res.dish.active }
+          : d
+      ))
+      setEditingId(null)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    setSaving(true)
+    setError(null)
+    try {
+      await request(`/api/dashboard/${venueId}/dishes/${id}`, { method: 'DELETE' })
+      setDishes(dishes.filter((d) => d.id !== id))
+      setDeleteConfirm(null)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const categories = ['Starters', 'Mains', 'Desserts', 'Sides', 'Drinks']
 
-  const handleAdd = (data: DishFormData) => {
-    const id = Date.now().toString()
-    setDishes([...dishes, formDataToDish(data, id)])
-    setShowAddForm(false)
-  }
-
-  const handleEdit = (data: DishFormData) => {
-    if (!editingId) return
-    setDishes(dishes.map((d) => (d.id === editingId ? formDataToDish(data, d.id) : d)))
-    setEditingId(null)
-  }
-
-  const handleDelete = (id: string) => {
-    setDishes(dishes.filter((d) => d.id !== id))
-    setDeleteConfirm(null)
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-6 h-6 border-2 border-se-green-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (
@@ -88,19 +171,23 @@ export default function DashboardMenu() {
         )}
       </div>
 
-      {/* Add form */}
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       {showAddForm && (
         <div className="mb-6">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">New dish</h3>
           <DishForm
             onSubmit={handleAdd}
             onCancel={() => setShowAddForm(false)}
-            submitLabel="Add dish"
+            submitLabel={saving ? 'Saving…' : 'Add dish'}
           />
         </div>
       )}
 
-      {/* Dish list by category */}
       {categories.map((cat) => {
         const catDishes = dishes.filter((d) => d.category === cat)
         if (catDishes.length === 0) return null
@@ -115,7 +202,7 @@ export default function DashboardMenu() {
                       initial={dishToFormData(dish)}
                       onSubmit={handleEdit}
                       onCancel={() => setEditingId(null)}
-                      submitLabel="Save changes"
+                      submitLabel={saving ? 'Saving…' : 'Save changes'}
                     />
                   ) : (
                     <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -153,7 +240,7 @@ export default function DashboardMenu() {
                                 onClick={() => handleDelete(dish.id)}
                                 className="px-2 py-1 rounded text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
                               >
-                                Delete
+                                {saving ? '…' : 'Delete'}
                               </button>
                               <button
                                 onClick={() => setDeleteConfirm(null)}
