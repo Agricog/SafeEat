@@ -196,8 +196,34 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
 // ===========================================================================
 
 app.use('/api/dashboard/*', requireAuth())
-app.use('/api/dashboard/:venueId/*', enforceVenueAccess())
 app.use('/api/dashboard/*', rateLimitDashboard())
+
+// ---------------------------------------------------------------------------
+// DASHBOARD: Get current user's venue
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/me', async (c) => {
+  const clerkUserId = c.get('clerkUserId')
+
+  try {
+    const venues = await sql`
+      SELECT id, name, slug, address, phone, email
+      FROM venues
+      WHERE clerk_user_id = ${clerkUserId}
+      LIMIT 1
+    `
+    if (venues.length === 0) {
+      return c.json({ error: 'No venue linked to this account' }, 404)
+    }
+
+    return c.json({ venue: venues[0] })
+  } catch (err) {
+    console.error('Venue lookup error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// Venue-scoped routes need enforceVenueAccess
+app.use('/api/dashboard/:venueId/*', enforceVenueAccess())
 
 // ---------------------------------------------------------------------------
 // DASHBOARD: Get venue stats
@@ -440,6 +466,78 @@ app.get('/api/dashboard/:venueId/customers', async (c) => {
   }
 })
 
+// ---------------------------------------------------------------------------
+// DASHBOARD: Get venue details (for settings page)
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/:venueId/venue', async (c) => {
+  const venueId = c.get('venueId')
+
+  try {
+    const venues = await sql`
+      SELECT id, name, slug, address, phone, email
+      FROM venues
+      WHERE id = ${venueId}
+      LIMIT 1
+    `
+    if (venues.length === 0) {
+      return c.json({ error: 'Venue not found' }, 404)
+    }
+    return c.json({ venue: venues[0] })
+  } catch (err) {
+    console.error('Venue fetch error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// DASHBOARD: Update venue details
+// ---------------------------------------------------------------------------
+app.put('/api/dashboard/:venueId/venue', async (c) => {
+  const venueId = c.get('venueId')
+
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  const updates = {}
+  if (body.name !== undefined) {
+    updates.name = sanitiseString(body.name, 200)
+    if (!updates.name) return c.json({ error: 'Venue name cannot be empty' }, 400)
+  }
+  if (body.address !== undefined) {
+    updates.address = sanitiseString(body.address, 500)
+  }
+  if (body.phone !== undefined) {
+    updates.phone = sanitiseString(body.phone, 20)
+  }
+  if (body.email !== undefined) {
+    updates.email = sanitiseString(body.email, 254)
+  }
+
+  try {
+    const venues = await sql`
+      UPDATE venues
+      SET
+        name = COALESCE(${updates.name ?? null}, name),
+        address = COALESCE(${updates.address ?? null}, address),
+        phone = COALESCE(${updates.phone ?? null}, phone),
+        email = COALESCE(${updates.email ?? null}, email)
+      WHERE id = ${venueId}
+      RETURNING id, name, slug, address, phone, email
+    `
+    if (venues.length === 0) {
+      return c.json({ error: 'Venue not found' }, 404)
+    }
+    return c.json({ venue: venues[0] })
+  } catch (err) {
+    console.error('Venue update error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
 // ===========================================================================
 // STATIC FILES (SPA fallback)
 // ===========================================================================
@@ -449,7 +547,7 @@ app.get('/*', serveStatic({ root: './dist', path: 'index.html' }))
 // ===========================================================================
 // START SERVER
 // ===========================================================================
-const port = parseInt(process.env.PORT || '3000')
+const port = parseInt(process.env.PORT || '8080')
 
 serve({ fetch: app.fetch, port }, () => {
   console.log(`SafeEat API running on port ${port}`)
