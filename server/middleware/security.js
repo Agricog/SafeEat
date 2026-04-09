@@ -27,12 +27,13 @@ export function securityHeaders() {
     // Content Security Policy
     c.header('Content-Security-Policy', [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://clerk.safeeat.co.uk https://*.clerk.accounts.dev",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://clerk.safeeat.co.uk https://*.clerk.accounts.dev https://*.clerk.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https://api.qrserver.com https://img.clerk.com",
-      "font-src 'self'",
-      "connect-src 'self' https://*.clerk.accounts.dev https://api.clerk.com",
-      "frame-src 'self' https://*.clerk.accounts.dev",
+      "img-src 'self' data: blob: https://api.qrserver.com https://img.clerk.com https://*.clerk.com",
+      "font-src 'self' https://*.clerk.com",
+      "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://api.clerk.com https://clerk-telemetry.com",
+      "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com",
+      "worker-src 'self' blob:",
       "base-uri 'self'",
       "form-action 'self'",
     ].join('; '))
