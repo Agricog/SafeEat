@@ -64,7 +64,7 @@ export function requireAuth() {
       }
 
       // Look up the venue for this user
-      const { sql } = await import('./db.js')
+      const { sql } = await import('../db.js')
       const venues = await sql`
         SELECT id FROM venues WHERE clerk_user_id = ${clerkUserId} LIMIT 1
       `
