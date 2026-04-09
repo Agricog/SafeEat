@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import QRCodeDisplay from '../components/QRCodeDisplay'
 import { useApi } from '../lib/api'
 import { useVenue } from '../lib/VenueContext'
@@ -10,35 +11,66 @@ interface VenueDetails {
   email: string
 }
 
+interface SubscriptionInfo {
+  status: string
+  subscriptionId: string | null
+  customerId: string | null
+}
+
+const STATUS_LABELS: Record<string, { label: string; colour: string }> = {
+  active: { label: 'Active', colour: 'bg-se-green-50 text-se-green-700' },
+  trialing: { label: 'Free trial', colour: 'bg-blue-50 text-blue-700' },
+  past_due: { label: 'Past due', colour: 'bg-amber-50 text-amber-700' },
+  canceled: { label: 'Canceled', colour: 'bg-red-50 text-red-700' },
+  unpaid: { label: 'Unpaid', colour: 'bg-red-50 text-red-700' },
+}
+
 export default function DashboardSettings() {
   const { request } = useApi()
   const { venueId, venueSlug } = useVenue()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [venue, setVenue] = useState<VenueDetails | null>(null)
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<VenueDetails>({ name: '', address: '', phone: '', email: '' })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [billingLoading, setBillingLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const menuUrl = `${window.location.origin}/menu/${venueSlug}`
 
+  // Check for billing redirect
+  const billingResult = searchParams.get('billing')
+  useEffect(() => {
+    if (billingResult) {
+      setSearchParams({}, { replace: true })
+    }
+  }, [billingResult, setSearchParams])
+
   useEffect(() => {
     let cancelled = false
-    request<{ venue: { name: string; address: string; phone: string; email: string } }>(
-      `/api/dashboard/${venueId}/venue`
-    )
-      .then((data) => {
+    Promise.all([
+      request<{ venue: { name: string; address: string; phone: string; email: string } }>(
+        `/api/dashboard/${venueId}/venue`
+      ),
+      request<SubscriptionInfo>(
+        `/api/dashboard/${venueId}/subscription`
+      ),
+    ])
+      .then(([venueData, subData]) => {
         if (cancelled) return
         const v = {
-          name: data.venue.name || '',
-          address: data.venue.address || '',
-          phone: data.venue.phone || '',
-          email: data.venue.email || '',
+          name: venueData.venue.name || '',
+          address: venueData.venue.address || '',
+          phone: venueData.venue.phone || '',
+          email: venueData.venue.email || '',
         }
         setVenue(v)
         setDraft(v)
+        setSubscription(subData)
       })
       .catch((err) => { if (!cancelled) setError(err.message) })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -76,6 +108,39 @@ export default function DashboardSettings() {
     setEditing(false)
   }
 
+  const handleSubscribe = async () => {
+    setBillingLoading(true)
+    setError(null)
+    try {
+      const res = await request<{ url: string }>(
+        `/api/dashboard/${venueId}/billing/checkout`,
+        { method: 'POST' }
+      )
+      window.location.href = res.url
+    } catch (err: any) {
+      setError(err.message)
+      setBillingLoading(false)
+    }
+  }
+
+  const handleManageBilling = async () => {
+    setBillingLoading(true)
+    setError(null)
+    try {
+      const res = await request<{ url: string }>(
+        `/api/dashboard/${venueId}/billing/portal`,
+        { method: 'POST' }
+      )
+      window.location.href = res.url
+    } catch (err: any) {
+      setError(err.message)
+      setBillingLoading(false)
+    }
+  }
+
+  const subStatus = STATUS_LABELS[subscription?.status || 'trialing'] || STATUS_LABELS.trialing
+  const hasSubscription = subscription?.subscriptionId !== null
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -91,6 +156,13 @@ export default function DashboardSettings() {
       {error && (
         <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {billingResult === 'success' && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-se-green-50 border border-se-green-200 flex items-center gap-2">
+          <span className="text-se-green-600">✓</span>
+          <p className="text-sm text-se-green-700 font-medium">Subscription activated! Welcome to SafeEat.</p>
         </div>
       )}
 
@@ -190,16 +262,16 @@ export default function DashboardSettings() {
             )}
           </div>
 
-          {/* Subscription */}
+          {/* Subscription — now live with Stripe */}
           <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Subscription</h3>
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-sm font-semibold text-gray-900">SafeEat Starter</p>
-                <p className="text-xs text-gray-500">£9.99/month</p>
+                <p className="text-xs text-gray-500">£29.99/month</p>
               </div>
-              <span className="px-2 py-1 rounded-full text-xs font-medium bg-se-green-50 text-se-green-700">
-                Active
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${subStatus.colour}`}>
+                {subStatus.label}
               </span>
             </div>
             <div className="text-xs text-gray-500 space-y-1 mb-4">
@@ -210,12 +282,23 @@ export default function DashboardSettings() {
               <p>✓ Push notifications to opted-in customers</p>
             </div>
             <div className="flex gap-2">
-              <button className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium hover:bg-gray-200 transition-colors">
-                Manage billing
-              </button>
-              <button className="px-3 py-1.5 rounded-lg text-gray-400 text-xs font-medium hover:text-red-500 hover:bg-red-50 transition-colors">
-                Cancel plan
-              </button>
+              {!hasSubscription ? (
+                <button
+                  onClick={handleSubscribe}
+                  disabled={billingLoading}
+                  className="px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors disabled:opacity-50"
+                >
+                  {billingLoading ? 'Redirecting…' : 'Subscribe now'}
+                </button>
+              ) : (
+                <button
+                  onClick={handleManageBilling}
+                  disabled={billingLoading}
+                  className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
+                >
+                  {billingLoading ? 'Loading…' : 'Manage billing'}
+                </button>
+              )}
             </div>
           </div>
         </div>
