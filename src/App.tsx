@@ -4,6 +4,8 @@ import MenuPage from './pages/MenuPage'
 import DashboardLayout from './pages/DashboardLayout'
 import DashboardOverview from './pages/DashboardOverview'
 import DashboardMenu from './pages/DashboardMenu'
+import DashboardVerification from './pages/DashboardVerification'
+import DashboardCustomers from './pages/DashboardCustomers'
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -22,8 +24,8 @@ export default function App() {
       <Route path="/dashboard" element={<DashboardLayout />}>
         <Route index element={<DashboardOverview />} />
         <Route path="menu" element={<DashboardMenu />} />
-        <Route path="customers" element={<PlaceholderPage title="Customers" />} />
-        <Route path="verification" element={<PlaceholderPage title="Verification" />} />
+        <Route path="customers" element={<DashboardCustomers />} />
+        <Route path="verification" element={<DashboardVerification />} />
         <Route path="settings" element={<PlaceholderPage title="Settings" />} />
       </Route>
     </Routes>
