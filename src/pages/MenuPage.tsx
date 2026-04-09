@@ -42,20 +42,28 @@ export default function MenuPage() {
   const [promptDismissed, setPromptDismissed] = useState(false)
   const [savedConfirmation, setSavedConfirmation] = useState(!!profile)
 
-  // Show save prompt after user selects allergens and closes the selector
+// Show save prompt after user selects allergens and closes the selector
+  const [selectorWasOpen, setSelectorWasOpen] = useState(false)
+
+  useEffect(() => {
+    if (showSelector) {
+      setSelectorWasOpen(true)
+    }
+  }, [showSelector])
+
   useEffect(() => {
     if (
+      selectorWasOpen &&
       !showSelector &&
       selectedAllergens.length > 0 &&
       !profile &&
       !promptDismissed &&
       !savedConfirmation
     ) {
-      const timer = setTimeout(() => setShowSavePrompt(true), 500)
-      return () => clearTimeout(timer)
+      setShowSavePrompt(true)
+      setSelectorWasOpen(false)
     }
-    setShowSavePrompt(false)
-  }, [showSelector, selectedAllergens.length, profile, promptDismissed, savedConfirmation])
+  }, [showSelector, selectorWasOpen, selectedAllergens.length, profile, promptDismissed, savedConfirmation])
 
   const handleSave = (marketingConsent: boolean) => {
     saveProfile(selectedAllergens, DEMO_VENUE_NAME, marketingConsent)
