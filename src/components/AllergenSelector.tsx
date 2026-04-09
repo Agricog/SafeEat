@@ -1,20 +1,14 @@
 import { useState } from 'react'
-import { ALLERGEN_LIST, buildMaskFromIds, type AllergenMeta } from '../lib/allergens'
+import { ALLERGENS, buildMaskFromIds, type AllergenInfo } from '../lib/allergens'
 
 interface AllergenSelectorProps {
-  selected: number[]
-  onChange: (selected: number[]) => void
+  selected: string[]
+  onChange: (selected: string[]) => void
   compact?: boolean
 }
 
-const ICONS: Record<number, string> = {
-  1: '🌾', 2: '🦀', 3: '🥚', 4: '🐟', 5: '🥜', 6: '🫘',
-  7: '🥛', 8: '🌰', 9: '🧅', 10: '🟡', 11: '🌱', 12: '🫙',
-  13: '🐺', 14: '🐚',
-}
-
 export default function AllergenSelector({ selected, onChange, compact }: AllergenSelectorProps) {
-  const toggle = (id: number) => {
+  const toggle = (id: string) => {
     onChange(
       selected.includes(id)
         ? selected.filter((s) => s !== id)
@@ -24,7 +18,7 @@ export default function AllergenSelector({ selected, onChange, compact }: Allerg
 
   return (
     <div className={compact ? 'flex flex-wrap gap-2' : 'grid grid-cols-2 gap-3'}>
-      {ALLERGEN_LIST.map((a) => {
+      {ALLERGENS.map((a) => {
         const active = selected.includes(a.id)
         return (
           <button
@@ -38,8 +32,8 @@ export default function AllergenSelector({ selected, onChange, compact }: Allerg
                 : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
               }`}
           >
-            <span className="text-lg">{ICONS[a.id] ?? '⚠️'}</span>
-            <span>{a.label}</span>
+            <span className="text-lg">{a.icon}</span>
+            <span>{a.shortLabel}</span>
           </button>
         )
       })}
