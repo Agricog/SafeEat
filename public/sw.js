@@ -1,5 +1,5 @@
 // SafeEat Service Worker — offline menu caching
-const CACHE_VERSION = 'safeeat-v1'
+const CACHE_VERSION = 'safeeat-v2'
 const STATIC_CACHE = `${CACHE_VERSION}-static`
 const API_CACHE = `${CACHE_VERSION}-api`
 
@@ -48,15 +48,15 @@ function isDashboardApi(url) {
 
 // Network-first: try network, fall back to cache (for menu API)
 async function networkFirst(request) {
+  const cache = await caches.open(API_CACHE)
   try {
     const response = await fetch(request)
     if (response.ok) {
-      const cache = await caches.open(API_CACHE)
-      cache.put(request, response.clone())
+      await cache.put(request, response.clone())
     }
     return response
-  } catch {
-    const cached = await caches.match(request)
+  } catch (err) {
+    const cached = await cache.match(request)
     if (cached) return cached
     return new Response(
       JSON.stringify({ error: 'You are offline. This menu was not cached yet.' }),
@@ -73,7 +73,7 @@ async function cacheFirst(request) {
     const response = await fetch(request)
     if (response.ok) {
       const cache = await caches.open(STATIC_CACHE)
-      cache.put(request, response.clone())
+      await cache.put(request, response.clone())
     }
     return response
   } catch {
@@ -85,8 +85,9 @@ async function cacheFirst(request) {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
 
-  // Only handle same-origin requests
+  // Only handle same-origin GET requests
   if (url.origin !== self.location.origin) return
+  if (event.request.method !== 'GET') return
 
   // Skip dashboard API — always needs fresh auth data
   if (isDashboardApi(url)) return
@@ -106,7 +107,13 @@ self.addEventListener('fetch', (event) => {
   // HTML navigation — network-first so the SPA always loads fresh
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/'))
+      fetch(event.request)
+        .then(async (response) => {
+          const cache = await caches.open(STATIC_CACHE)
+          await cache.put(event.request, response.clone())
+          return response
+        })
+        .catch(() => caches.match('/'))
     )
     return
   }
