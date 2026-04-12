@@ -175,11 +175,11 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
 
   try {
     const venues = await sql`
-      SELECT id, name, slug, address
-      FROM venues
-      WHERE slug = ${slug}
-      LIMIT 1
-    `
+  SELECT id, name, slug, address
+  FROM venues
+  WHERE slug = ${slug} OR id = ${slug}
+  LIMIT 1
+`
     if (venues.length === 0) {
       return c.json({ error: 'Venue not found' }, 404)
     }
@@ -259,7 +259,7 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
 
   try {
     const venues = await sql`
-      SELECT id FROM venues WHERE slug = ${slug} LIMIT 1
+      SELECT id FROM venues WHERE slug = ${slug} OR id = ${slug} LIMIT 1
     `
     if (venues.length === 0) {
       return c.json({ error: 'Venue not found' }, 404)
