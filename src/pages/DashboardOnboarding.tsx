@@ -29,12 +29,12 @@ export default function DashboardOnboarding({ onComplete }: OnboardingProps) {
     try {
       await request('/api/dashboard/venues', {
         method: 'POST',
-        body: JSON.stringify({
-          name: name.trim(),
-          address: address.trim(),
-          phone: phone.trim(),
-          email: email.trim(),
-        }),
+        body: {
+  name: name.trim(),
+  address: address.trim(),
+  phone: phone.trim(),
+  email: email.trim(),
+},
       })
       onComplete()
     } catch (err: any) {
