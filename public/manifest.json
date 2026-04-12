@@ -1,0 +1,26 @@
+{
+  "name": "SafeEat — Allergen Menu Software",
+  "short_name": "SafeEat",
+  "description": "See what's safe to eat. Allergen menu software for UK restaurants.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["food", "business", "health"],
+  "lang": "en-GB"
+}
