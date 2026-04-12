@@ -11,6 +11,12 @@ import DashboardMenu from './pages/DashboardMenu'
 import DashboardCustomers from './pages/DashboardCustomers'
 import DashboardVerification from './pages/DashboardVerification'
 import DashboardSettings from './pages/DashboardSettings'
+import AllergensGuidePage from './pages/AllergensGuidePage'
+import OwensLawGuidePage from './pages/OwensLawGuidePage'
+import EhoGuidePage from './pages/EhoGuidePage'
+import AllergenTemplatePage from './pages/AllergenTemplatePage'
+import NatashasLawGuidePage from './pages/NatashasLawGuidePage'
+import AllergenFinesGuidePage from './pages/AllergenFinesGuidePage'
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -34,6 +40,12 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/guides/14-allergens-uk" element={<AllergensGuidePage />} />
+<Route path="/guides/owens-law" element={<OwensLawGuidePage />} />
+<Route path="/guides/eho-allergen-inspection" element={<EhoGuidePage />} />
+<Route path="/guides/allergen-menu-template" element={<AllergenTemplatePage />} />
+<Route path="/guides/natashas-law-restaurants" element={<NatashasLawGuidePage />} />
+<Route path="/guides/allergen-fines-uk" element={<AllergenFinesGuidePage />} />
         <Route
           path="/dashboard"
           element={
