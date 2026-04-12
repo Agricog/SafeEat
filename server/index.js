@@ -510,7 +510,7 @@ app.post('/api/dashboard/venues', async (c) => {
 
     const venues = await sql`
       INSERT INTO venues (id, name, slug, address, phone, email, clerk_user_id, subscription_status)
-      VALUES (${venueId}, ${name}, ${slug}, ${address}, ${phone}, ${email}, ${clerkUserId}, 'trialing')
+      VALUES (${venueId}, ${name}, ${slug}, ${address}, ${phone}, ${email}, ${clerkUserId}, 'trial')
       RETURNING id, name, slug, address, phone, email
     `
 
