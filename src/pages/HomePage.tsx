@@ -4,11 +4,15 @@ import { Helmet } from 'react-helmet-async'
 const FAQ_ITEMS = [
   {
     q: 'What are the 14 allergens UK restaurants must declare?',
-    a: 'Under the Food Information Regulations 2014, UK food businesses must declare these 14 allergens: celery, cereals containing gluten, crustaceans, eggs, fish, lupin, milk, molluscs, mustard, nuts (tree nuts), peanuts, sesame, soybeans, and sulphur dioxide (sulphites above 10mg/kg). SafeEat covers all 14 with our bitmask filtering system so customers can instantly see which dishes are safe for them.',
+    a: 'Under the Food Information Regulations 2014, UK food businesses must declare these 14 allergens: celery, cereals containing gluten, crustaceans, eggs, fish, lupin, milk, molluscs, mustard, nuts (tree nuts), peanuts, sesame, soybeans, and sulphur dioxide (sulphites above 10mg/kg). SafeEat covers all 14 so customers can instantly see which dishes are safe for them.',
   },
   {
     q: 'How does SafeEat help with Natasha\'s Law compliance?',
     a: 'Natasha\'s Law (the UK Allergen Labelling Regulations 2021) requires prepacked for direct sale (PPDS) food to carry a full ingredients list with the 14 allergens emphasised. SafeEat extends this to your dine-in menu with a digital allergen display that customers access via QR code. Our weekly verification flow and timestamped audit trail give you documented proof of allergen diligence for EHO inspections.',
+  },
+  {
+    q: 'What is Owen\'s Law and how does it affect my restaurant?',
+    a: 'Owen\'s Law calls for mandatory written allergen information at the point of ordering in UK restaurants, without the customer needing to ask. The FSA published voluntary best-practice guidance in March 2025 and is evaluating uptake in spring 2026 — if compliance is poor, mandatory legislation follows. SafeEat gives you written allergen information via QR code now, putting you ahead of the likely regulation.',
   },
   {
     q: 'How do customers use SafeEat?',
@@ -24,7 +28,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How is customer allergy data protected?',
-    a: 'Customer allergen profiles are special-category health data under UK GDPR Article 9. SafeEat encrypts all allergen data at rest using pgcrypto, hashes personal identifiers with SHA-256, stores profiles only with explicit consent, and auto-deletes after 18 months of inactivity. Customers can delete their profile at any time.',
+    a: 'Customer allergen profiles are special-category health data under UK GDPR Article 9. SafeEat encrypts all allergen data at rest, hashes personal identifiers, stores profiles only with explicit consent, and auto-deletes after 18 months of inactivity. Customers can delete their profile at any time.',
   },
   {
     q: 'Can I try SafeEat before paying?',
@@ -32,7 +36,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How much does SafeEat cost?',
-    a: 'SafeEat Starter is £29.99 per month per venue. This includes unlimited menu items, customer allergen profiles, the weekly verification audit trail, your QR code, and push notifications to opted-in customers. No setup fees, no long-term contracts — cancel any time.',
+    a: 'SafeEat Starter is £29.99 per month per venue. This includes unlimited menu items, customer allergen profiles, the weekly verification audit trail, your QR code, and notifications to opted-in customers. No setup fees, no long-term contracts — cancel any time.',
   },
 ]
 
@@ -92,15 +96,19 @@ export default function HomePage() {
           <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-se-green-50 text-se-green-700 text-xs font-medium mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-se-green-500 animate-pulse" />
-              Natasha&apos;s Law &amp; Food Information Regulations 2014 compliant
+              Natasha&apos;s Law, Owen&apos;s Law &amp; Food Information Regulations 2014 compliant
             </div>
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 leading-tight mb-5">
               Allergen menu software for{' '}
               <span className="text-se-green-600">UK restaurants</span>
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-600 mb-4 max-w-2xl mx-auto">
               Your customers scan a QR code, filter your menu by their allergies, and see exactly
               what&apos;s safe to eat. You get an EHO-ready audit trail and customers who come back.
+            </p>
+            <p className="text-base text-gray-800 font-medium mb-8 max-w-2xl mx-auto">
+              The only UK allergen tool that builds a database of your allergy customers —
+              turning compliance into repeat business.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
@@ -121,17 +129,35 @@ export default function HomePage() {
         </header>
 
         {/* ================================================================
+            TRUST BAR
+        ================================================================ */}
+        <div className="border-y border-gray-100 bg-gray-50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
+            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-xs text-gray-500">
+              <span>Built in compliance with FSA best practice guidance (March 2025)</span>
+              <span className="hidden sm:inline">·</span>
+              <span>All 14 UK regulated allergens covered</span>
+              <span className="hidden sm:inline">·</span>
+              <span>UK GDPR Article 9 compliant</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ================================================================
             PROBLEM / SOLUTION
         ================================================================ */}
-        <section className="py-16 bg-gray-50">
+        <section className="py-16">
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-4">
               Allergen compliance shouldn&apos;t cost you customers
             </h2>
-            <p className="text-gray-600 text-center max-w-2xl mx-auto mb-12">
-              2 million people in the UK have a diagnosed food allergy. They eat out less because
-              they don&apos;t trust the information. SafeEat gives them confidence — and gives you
-              their repeat business.
+            <p className="text-gray-600 text-center max-w-2xl mx-auto mb-4">
+              2.4 million adults in the UK have a clinically confirmed food allergy. 60% of young
+              allergic diners avoid eating out entirely because they don&apos;t trust the information.
+              SafeEat gives them confidence — and gives you their repeat business.
+            </p>
+            <p className="text-center text-sm text-red-600 font-medium mb-12">
+              Recent fines for allergen failures have reached £43,000 for independent UK restaurants.
             </p>
             <div className="grid sm:grid-cols-3 gap-6">
               <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -162,6 +188,26 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* ================================================================
+            OWEN'S LAW CALLOUT
+        ================================================================ */}
+        <section className="py-12 bg-amber-50 border-y border-amber-200">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">
+              Owen&apos;s Law is coming — are you ready?
+            </h2>
+            <p className="text-sm text-gray-700 leading-relaxed max-w-2xl mx-auto mb-4">
+              Owen&apos;s Law calls for mandatory written allergen information at the point of ordering
+              in UK restaurants. The FSA published voluntary guidance in March 2025 and is evaluating
+              uptake now. If compliance is poor, mandatory legislation follows. 47% of small food
+              businesses still rely on verbal-only allergen communication.
+            </p>
+            <p className="text-sm text-amber-800 font-semibold">
+              SafeEat gives you written allergen information via QR code today — ahead of the regulation.
+            </p>
           </div>
         </section>
 
@@ -203,6 +249,27 @@ export default function HomePage() {
         </section>
 
         {/* ================================================================
+            USP — unique differentiator section
+        ================================================================ */}
+        <section className="py-16 bg-se-green-600">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+              The only UK allergen tool that builds your customer database
+            </h2>
+            <p className="text-se-green-100 text-base leading-relaxed max-w-2xl mx-auto mb-6">
+              Every other allergen tool stops at compliance — display the data and move on.
+              SafeEat is different. When customers save their allergy profile, you build a database
+              of diners with their allergen preferences and marketing opt-ins. You know which
+              allergens are most common. You know who&apos;s coming back. You can reach them
+              when your menu changes.
+            </p>
+            <p className="text-white font-semibold text-lg">
+              Compliance tools show allergens. SafeEat builds relationships.
+            </p>
+          </div>
+        </section>
+
+        {/* ================================================================
             FEATURES — deeper keyword targeting
         ================================================================ */}
         <section className="py-16 bg-gray-50">
@@ -216,11 +283,11 @@ export default function HomePage() {
             </p>
             <div className="grid sm:grid-cols-2 gap-4">
               {[
-                { icon: '🌾', title: 'All 14 UK regulated allergens', desc: 'Bitmask-based filtering covers every allergen required under Food Information Regulations 2014 — fast, accurate, zero lag.' },
+                { icon: '🌾', title: 'All 14 UK regulated allergens', desc: 'Instant filtering covers every allergen required under Food Information Regulations 2014 — fast, accurate, and always up to date.' },
                 { icon: '🔒', title: 'UK GDPR Article 9 compliant', desc: 'Allergen data is special-category health data. We encrypt at rest, hash identifiers, enforce consent, and auto-delete after 18 months.' },
                 { icon: '📊', title: 'Customer insights dashboard', desc: 'See which allergens are most common among your customers, track scan volumes, and identify returning visitors — all anonymised.' },
                 { icon: '🔔', title: 'Marketing notifications', desc: 'Customers who opt in can receive updates when your menu changes. Turn allergen compliance into a direct marketing channel.' },
-                { icon: '🏛️', title: 'FSA &amp; EHO ready', desc: 'Append-only verification log with timestamps gives Environmental Health Officers clear evidence of your allergen management process.' },
+                { icon: '🏛️', title: 'FSA & EHO ready', desc: 'Append-only verification log with timestamps gives Environmental Health Officers clear evidence of your allergen management process.' },
                 { icon: '⚡', title: 'No app download required', desc: 'Customers scan, filter, and save — all in their phone browser. No friction, no app store, no barrier to adoption.' },
               ].map((f) => (
                 <div key={f.title} className="bg-white rounded-xl border border-gray-200 p-5 flex gap-4">
@@ -348,8 +415,8 @@ export default function HomePage() {
                   Terms of Service
                 </Link>
                 <Link to="/contact" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
-  Contact
-</Link>
+                  Contact
+                </Link>
               </nav>
             </div>
           </div>
