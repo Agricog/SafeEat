@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { UserButton } from '@clerk/clerk-react'
 import { useApi } from '../lib/api'
 import { VenueProvider, type VenueContext } from '../lib/VenueContext'
+import DashboardOnboarding from './DashboardOnboarding'
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Overview', icon: '📊', end: true },
@@ -17,28 +18,37 @@ export default function DashboardLayout() {
   const [venue, setVenue] = useState<VenueContext | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [needsOnboarding, setNeedsOnboarding] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
+  const fetchVenue = useCallback(() => {
+    setLoading(true)
+    setError(null)
+    setNeedsOnboarding(false)
+
     request<{ venue: { id: string; name: string; slug: string; address: string } }>('/api/dashboard/me')
       .then((data) => {
-        if (!cancelled) {
-          setVenue({
-            venueId: data.venue.id,
-            venueName: data.venue.name,
-            venueSlug: data.venue.slug,
-            venueAddress: data.venue.address,
-          })
-        }
+        setVenue({
+          venueId: data.venue.id,
+          venueName: data.venue.name,
+          venueSlug: data.venue.slug,
+          venueAddress: data.venue.address,
+        })
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message)
+        if (err.message === 'No venue linked to this account' || err.status === 404) {
+          setNeedsOnboarding(true)
+        } else {
+          setError(err.message)
+        }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false)
+        setLoading(false)
       })
-    return () => { cancelled = true }
   }, [request])
+
+  useEffect(() => {
+    fetchVenue()
+  }, [fetchVenue])
 
   if (loading) {
     return (
@@ -51,18 +61,25 @@ export default function DashboardLayout() {
     )
   }
 
+  if (needsOnboarding) {
+    return <DashboardOnboarding onComplete={fetchVenue} />
+  }
+
   if (error || !venue) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center px-6">
           <div className="text-4xl mb-3">⚠️</div>
-          <h1 className="text-lg font-bold text-gray-900 mb-1">No venue found</h1>
+          <h1 className="text-lg font-bold text-gray-900 mb-1">Something went wrong</h1>
           <p className="text-sm text-gray-500 mb-4">
-            {error || 'Your account is not linked to a venue yet.'}
+            {error || 'Could not load your dashboard.'}
           </p>
-          <p className="text-xs text-gray-400">
-            Contact support at hello@safeeat.co.uk to set up your venue.
-          </p>
+          <button
+            onClick={fetchVenue}
+            className="px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors"
+          >
+            Try again
+          </button>
         </div>
       </div>
     )
