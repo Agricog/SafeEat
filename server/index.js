@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/node'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
@@ -23,7 +24,41 @@ import {
   verifyWebhookSignature,
 } from './stripe.js'
 
+// ---------------------------------------------------------------------------
+// Sentry initialisation (must be before app creation)
+// ---------------------------------------------------------------------------
+Sentry.init({
+  dsn: process.env.SENTRY_DSN || '',
+  environment: process.env.NODE_ENV || 'production',
+  enabled: !!process.env.SENTRY_DSN,
+  tracesSampleRate: 0.2,
+  beforeSend(event) {
+    // Strip sensitive headers
+    if (event.request?.headers) {
+      delete event.request.headers['authorization']
+      delete event.request.headers['cookie']
+      delete event.request.headers['stripe-signature']
+    }
+    return event
+  },
+})
+
 const app = new Hono()
+
+// ---------------------------------------------------------------------------
+// Global error handler — catches unhandled errors and sends to Sentry
+// ---------------------------------------------------------------------------
+app.onError((err, c) => {
+  Sentry.captureException(err, {
+    extra: {
+      method: c.req.method,
+      url: c.req.url,
+      path: c.req.path,
+    },
+  })
+  console.error('Unhandled error:', err)
+  return c.json({ error: 'Internal server error' }, 500)
+})
 
 // ---------------------------------------------------------------------------
 // Global middleware
@@ -155,6 +190,7 @@ app.post('/api/webhooks/stripe', async (c) => {
         break
     }
   } catch (err) {
+    Sentry.captureException(err, { extra: { eventType: event.type } })
     console.error('Webhook processing error:', err)
     return c.json({ error: 'Processing error' }, 500)
   }
@@ -175,11 +211,11 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
 
   try {
     const venues = await sql`
-  SELECT id, name, slug, address
-  FROM venues
-  WHERE slug = ${slug} OR id = ${slug}
-  LIMIT 1
-`
+      SELECT id, name, slug, address
+      FROM venues
+      WHERE slug = ${slug} OR id = ${slug}
+      LIMIT 1
+    `
     if (venues.length === 0) {
       return c.json({ error: 'Venue not found' }, 404)
     }
@@ -225,6 +261,7 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
         : null,
     })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/menu/:slug', slug } })
     console.error('Menu fetch error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -306,6 +343,7 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
 
     return c.json({ saved: true, profileId: profiles[0].id, visits: profiles[0].visit_count })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/menu/:slug/profile', slug } })
     console.error('Profile save error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -338,6 +376,7 @@ app.post('/api/contact', rateLimitProfile(), async (c) => {
     console.log(`Contact form: ${name} <${email}>`)
     return c.json({ sent: true }, 201)
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/contact' } })
     console.error('Contact form error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -369,6 +408,7 @@ app.get('/api/dashboard/me', async (c) => {
 
     return c.json({ venue: venues[0] })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/me', clerkUserId } })
     console.error('Venue lookup error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -400,6 +440,7 @@ app.get('/api/dashboard/:venueId/stats', async (c) => {
       lastVerified: verification.length > 0 ? verification[0].verified_at : null,
     })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/stats', venueId } })
     console.error('Stats error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -420,6 +461,7 @@ app.get('/api/dashboard/:venueId/dishes', async (c) => {
     `
     return c.json({ dishes })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/dishes', venueId } })
     console.error('Dishes fetch error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -457,6 +499,7 @@ app.post('/api/dashboard/:venueId/dishes', async (c) => {
     `
     return c.json({ dish: dishes[0] }, 201)
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/:venueId/dishes', venueId } })
     console.error('Dish create error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -519,6 +562,7 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
     }
     return c.json({ dish: dishes[0] })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'PUT /api/dashboard/:venueId/dishes/:dishId', venueId, dishId } })
     console.error('Dish update error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -542,6 +586,7 @@ app.delete('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
     }
     return c.json({ deleted: true })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'DELETE /api/dashboard/:venueId/dishes/:dishId', venueId, dishId } })
     console.error('Dish delete error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -563,6 +608,7 @@ app.get('/api/dashboard/:venueId/verifications', async (c) => {
     `
     return c.json({ verifications: log })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/verifications', venueId } })
     console.error('Verification fetch error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -593,6 +639,7 @@ app.post('/api/dashboard/:venueId/verifications', async (c) => {
     `
     return c.json({ verification: entries[0] }, 201)
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/:venueId/verifications', venueId } })
     console.error('Verification create error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -613,6 +660,7 @@ app.get('/api/dashboard/:venueId/customers', async (c) => {
     `
     return c.json({ customers: profiles })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/customers', venueId } })
     console.error('Customers fetch error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -636,6 +684,7 @@ app.get('/api/dashboard/:venueId/venue', async (c) => {
     }
     return c.json({ venue: venues[0] })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/venue', venueId } })
     console.error('Venue fetch error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -685,6 +734,7 @@ app.put('/api/dashboard/:venueId/venue', async (c) => {
     }
     return c.json({ venue: venues[0] })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'PUT /api/dashboard/:venueId/venue', venueId } })
     console.error('Venue update error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -700,6 +750,7 @@ app.get('/api/dashboard/:venueId/subscription', async (c) => {
     const sub = await getSubscriptionStatus(venueId, sql)
     return c.json(sub)
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/subscription', venueId } })
     console.error('Subscription status error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
@@ -729,6 +780,7 @@ app.post('/api/dashboard/:venueId/billing/checkout', async (c) => {
 
     return c.json({ url: session.url })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/:venueId/billing/checkout', venueId } })
     console.error('Checkout session error:', err)
     return c.json({ error: err.message || 'Internal server error' }, 500)
   }
@@ -756,6 +808,7 @@ app.post('/api/dashboard/:venueId/billing/portal', async (c) => {
 
     return c.json({ url: session.url })
   } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/:venueId/billing/portal', venueId } })
     console.error('Portal session error:', err)
     return c.json({ error: err.message || 'Internal server error' }, 500)
   }
@@ -778,4 +831,5 @@ serve({ fetch: app.fetch, port }, () => {
   console.log(`Security: headers, CORS, size limits, input sanitisation active`)
   console.log(`Rate limiting: Upstash Redis ${process.env.UPSTASH_REDIS_REST_URL ? 'connected' : 'disabled (no env vars)'}`)
   console.log(`Stripe: ${process.env.STRIPE_SECRET_KEY ? 'configured' : 'not configured'}`)
+  console.log(`Sentry: ${process.env.SENTRY_DSN ? 'configured' : 'not configured'}`)
 })
