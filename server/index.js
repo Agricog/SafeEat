@@ -418,26 +418,21 @@ app.post('/api/contact', rateLimitProfile(), async (c) => {
   } catch {
     return c.json({ error: 'Invalid JSON body' }, 400)
   }
-
   const name = sanitiseString(body.name, 100)
   const email = sanitiseString(body.email, 254)
   const message = sanitiseString(body.message, 2000)
-
   if (!name) return c.json({ error: 'Name is required' }, 400)
   if (!email || !email.includes('@')) return c.json({ error: 'Valid email is required' }, 400)
   if (!message) return c.json({ error: 'Message is required' }, 400)
-
   try {
     await sql`
       INSERT INTO contact_messages (name, email, message)
       VALUES (${name}, ${email}, ${message})
     `
     console.log(`Contact form: ${name} <${email}>`)
-
     // Send notification email to admin (fire and forget)
     sendContactNotification({ name, email, message })
       .catch((err) => console.error('Contact notification email error:', err))
-
     return c.json({ sent: true }, 201)
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'POST /api/contact' } })
@@ -458,7 +453,6 @@ app.use('/api/dashboard/*', rateLimitDashboard())
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/me', async (c) => {
   const clerkUserId = c.get('clerkUserId')
-
   try {
     const venues = await sql`
       SELECT id, name, slug, address, phone, email
@@ -469,11 +463,62 @@ app.get('/api/dashboard/me', async (c) => {
     if (venues.length === 0) {
       return c.json({ error: 'No venue linked to this account' }, 404)
     }
-
     return c.json({ venue: venues[0] })
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/me', clerkUserId } })
     console.error('Venue lookup error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// DASHBOARD: Create venue (onboarding)
+// ---------------------------------------------------------------------------
+app.post('/api/dashboard/venues', async (c) => {
+  const clerkUserId = c.get('clerkUserId')
+
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  const name = sanitiseString(body.name, 200)
+  const address = sanitiseString(body.address, 500)
+  const phone = sanitiseString(body.phone, 20)
+  const email = sanitiseString(body.email, 254)
+
+  if (!name) return c.json({ error: 'Venue name is required' }, 400)
+
+  try {
+    // Check user doesn't already have a venue
+    const existing = await sql`
+      SELECT id FROM venues WHERE clerk_user_id = ${clerkUserId} LIMIT 1
+    `
+    if (existing.length > 0) {
+      return c.json({ error: 'You already have a venue' }, 409)
+    }
+
+    // Generate slug from name
+    const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50)
+    const slugSuffix = Math.random().toString(36).slice(2, 6)
+    const slug = `${baseSlug}-${slugSuffix}`
+
+    // Generate venue ID
+    const venueId = `venue-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+    const venues = await sql`
+      INSERT INTO venues (id, name, slug, address, phone, email, clerk_user_id, subscription_status)
+      VALUES (${venueId}, ${name}, ${slug}, ${address}, ${phone}, ${email}, ${clerkUserId}, 'trialing')
+      RETURNING id, name, slug, address, phone, email
+    `
+
+    console.log(`New venue created: ${name} (${venueId}) by ${clerkUserId}`)
+    return c.json({ venue: venues[0] }, 201)
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/venues', clerkUserId } })
+    console.error('Venue creation error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
