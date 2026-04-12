@@ -17,6 +17,12 @@ import EhoGuidePage from './pages/EhoGuidePage'
 import AllergenTemplatePage from './pages/AllergenTemplatePage'
 import NatashasLawGuidePage from './pages/NatashasLawGuidePage'
 import AllergenFinesGuidePage from './pages/AllergenFinesGuidePage'
+import CafesPage from './pages/CafesPage'
+import TakeawaysPage from './pages/TakeawaysPage'
+import PubsPage from './pages/PubsPage'
+import GlutenFreeGuidePage from './pages/GlutenFreeGuidePage'
+import NutAllergyGuidePage from './pages/NutAllergyGuidePage'
+import AllergenRetentionGuidePage from './pages/AllergenRetentionGuidePage'
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -40,12 +46,24 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/contact" element={<ContactPage />} />
+
+        {/* Guides */}
         <Route path="/guides/14-allergens-uk" element={<AllergensGuidePage />} />
-<Route path="/guides/owens-law" element={<OwensLawGuidePage />} />
-<Route path="/guides/eho-allergen-inspection" element={<EhoGuidePage />} />
-<Route path="/guides/allergen-menu-template" element={<AllergenTemplatePage />} />
-<Route path="/guides/natashas-law-restaurants" element={<NatashasLawGuidePage />} />
-<Route path="/guides/allergen-fines-uk" element={<AllergenFinesGuidePage />} />
+        <Route path="/guides/owens-law" element={<OwensLawGuidePage />} />
+        <Route path="/guides/eho-allergen-inspection" element={<EhoGuidePage />} />
+        <Route path="/guides/allergen-menu-template" element={<AllergenTemplatePage />} />
+        <Route path="/guides/natashas-law-restaurants" element={<NatashasLawGuidePage />} />
+        <Route path="/guides/allergen-fines-uk" element={<AllergenFinesGuidePage />} />
+        <Route path="/guides/gluten-free-menu-restaurant" element={<GlutenFreeGuidePage />} />
+        <Route path="/guides/nut-allergy-restaurant-guide" element={<NutAllergyGuidePage />} />
+        <Route path="/guides/allergen-customer-retention" element={<AllergenRetentionGuidePage />} />
+
+        {/* Business-type pages */}
+        <Route path="/for/cafes" element={<CafesPage />} />
+        <Route path="/for/takeaways" element={<TakeawaysPage />} />
+        <Route path="/for/pubs" element={<PubsPage />} />
+
+        {/* Dashboard */}
         <Route
           path="/dashboard"
           element={
