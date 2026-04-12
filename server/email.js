@@ -3,7 +3,7 @@
  * No SDK dependency — uses fetch() directly.
  */
 
-const RESEND_API_URL = 'https://api.eu.resend.com/emails'
+const RESEND_API_URL = 'https://api.resend.com/emails'
 const FROM_ADDRESS = 'SafeEat <hello@safeeat.co.uk>'
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'hello@safeeat.co.uk'
 
