@@ -23,6 +23,11 @@ import {
   getSubscriptionStatus,
   verifyWebhookSignature,
 } from './stripe.js'
+import {
+  sendContactNotification,
+  sendWelcomeEmail,
+  sendVerificationReminder,
+} from './email.js'
 
 // ---------------------------------------------------------------------------
 // Sentry initialisation (must be before app creation)
@@ -136,6 +141,13 @@ app.post('/api/webhooks/stripe', async (c) => {
             WHERE id = ${venueId}
           `
           console.log(`Subscription activated for venue ${venueId}`)
+
+          // Send welcome email (fire and forget)
+          const venues = await sql`SELECT name, email FROM venues WHERE id = ${venueId} LIMIT 1`
+          if (venues.length > 0 && venues[0].email) {
+            sendWelcomeEmail({ venueEmail: venues[0].email, venueName: venues[0].name })
+              .catch((err) => console.error('Welcome email error:', err))
+          }
         }
         break
       }
@@ -196,6 +208,53 @@ app.post('/api/webhooks/stripe', async (c) => {
   }
 
   return c.json({ received: true })
+})
+
+// ===========================================================================
+// CRON: Verification reminder emails
+// Trigger daily via external cron service (e.g. cron-job.org).
+// Protected by CRON_SECRET to prevent abuse.
+// ===========================================================================
+app.post('/api/cron/verification-reminders', async (c) => {
+  const cronSecret = process.env.CRON_SECRET
+  const authHeader = c.req.header('Authorization')
+
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  try {
+    // Find venues with active subscriptions that haven't verified in 7+ days
+    const overdueVenues = await sql`
+      SELECT v.id, v.name, v.email,
+        EXTRACT(DAY FROM now() - MAX(vl.verified_at))::int AS days_since
+      FROM venues v
+      LEFT JOIN verification_log vl ON vl.venue_id = v.id AND vl.type != 'missed'
+      WHERE v.subscription_status = 'active'
+        AND v.email IS NOT NULL
+        AND v.email != ''
+      GROUP BY v.id, v.name, v.email
+      HAVING MAX(vl.verified_at) IS NULL OR MAX(vl.verified_at) < now() - INTERVAL '7 days'
+    `
+
+    let sent = 0
+    for (const venue of overdueVenues) {
+      const daysSince = venue.days_since || 'many'
+      await sendVerificationReminder({
+        venueEmail: venue.email,
+        venueName: venue.name,
+        daysSince,
+      })
+      sent++
+    }
+
+    console.log(`Verification reminders: ${sent} sent out of ${overdueVenues.length} overdue venues`)
+    return c.json({ sent, total: overdueVenues.length })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/cron/verification-reminders' } })
+    console.error('Verification reminder cron error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
 })
 
 // ===========================================================================
@@ -374,6 +433,11 @@ app.post('/api/contact', rateLimitProfile(), async (c) => {
       VALUES (${name}, ${email}, ${message})
     `
     console.log(`Contact form: ${name} <${email}>`)
+
+    // Send notification email to admin (fire and forget)
+    sendContactNotification({ name, email, message })
+      .catch((err) => console.error('Contact notification email error:', err))
+
     return c.json({ sent: true }, 201)
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'POST /api/contact' } })
@@ -832,4 +896,5 @@ serve({ fetch: app.fetch, port }, () => {
   console.log(`Rate limiting: Upstash Redis ${process.env.UPSTASH_REDIS_REST_URL ? 'connected' : 'disabled (no env vars)'}`)
   console.log(`Stripe: ${process.env.STRIPE_SECRET_KEY ? 'configured' : 'not configured'}`)
   console.log(`Sentry: ${process.env.SENTRY_DSN ? 'configured' : 'not configured'}`)
+  console.log(`Email: Resend ${process.env.RESEND_API_KEY ? 'configured' : 'not configured'}`)
 })
