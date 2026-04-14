@@ -1,32 +1,26 @@
 import { useState, useEffect } from 'react'
 import { useApi } from '../lib/api'
 import { useVenue } from '../lib/VenueContext'
-
 interface VerificationEntry {
   id: string
   verified_at: string
   type: 'confirmed' | 'updated' | 'missed'
   note: string
 }
-
 function formatDate(iso: string): string {
   const d = new Date(iso)
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
-
 function formatTime(iso: string): string {
   const d = new Date(iso)
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
-
 function daysSince(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
 }
-
 export default function DashboardVerification() {
   const { request } = useApi()
   const { venueId } = useVenue()
-
   const [log, setLog] = useState<VerificationEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -34,7 +28,7 @@ export default function DashboardVerification() {
   const [note, setNote] = useState('')
   const [hasChanges, setHasChanges] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
+  const [downloading, setDownloading] = useState(false)
   useEffect(() => {
     let cancelled = false
     request<{ verifications: VerificationEntry[] }>(`/api/dashboard/${venueId}/verifications`)
@@ -43,7 +37,6 @@ export default function DashboardVerification() {
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [request, venueId])
-
   const handleConfirm = async () => {
     setSaving(true)
     setError(null)
@@ -70,15 +63,40 @@ export default function DashboardVerification() {
       setSaving(false)
     }
   }
-
+  const handleDownloadReport = async () => {
+    setDownloading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/dashboard/${venueId}/eho-report`, {
+        headers: {
+          'Authorization': `Bearer ${await (window as any).Clerk?.session?.getToken()}`,
+        },
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'Download failed' }))
+        throw new Error(errData.error || 'Download failed')
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `SafeEat-EHO-Report-${new Date().toISOString().slice(0, 10)}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      setError(err.message || 'Failed to download report')
+    } finally {
+      setDownloading(false)
+    }
+  }
   const lastVerified = log.find((e) => e.type !== 'missed')
   const daysSinceVerified = lastVerified ? daysSince(lastVerified.verified_at) : 999
-
   let statusColour: string
   let statusBg: string
   let statusDot: string
   let statusText: string
-
   if (daysSinceVerified <= 7) {
     statusColour = 'text-se-green-700'
     statusBg = 'bg-se-green-50 border-se-green-200'
@@ -95,7 +113,6 @@ export default function DashboardVerification() {
     statusDot = 'bg-red-500'
     statusText = `Overdue — last verified ${daysSinceVerified} days ago`
   }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -103,17 +120,14 @@ export default function DashboardVerification() {
       </div>
     )
   }
-
   return (
     <div>
       <h2 className="text-xl font-bold text-gray-900 mb-6">Menu Verification</h2>
-
       {error && (
         <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
           {error}
         </div>
       )}
-
       {/* Current status */}
       <div className={`rounded-xl border p-5 mb-6 ${statusBg}`}>
         <div className="flex items-start justify-between gap-4">
@@ -127,16 +141,17 @@ export default function DashboardVerification() {
               and gives you an audit trail for EHO inspections.
             </p>
           </div>
-          {!showConfirmForm && (
-            <button
-              onClick={() => setShowConfirmForm(true)}
-              className="px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors whitespace-nowrap flex-shrink-0"
-            >
-              Verify now
-            </button>
-          )}
+          <div className="flex gap-2 flex-shrink-0">
+            {!showConfirmForm && (
+              <button
+                onClick={() => setShowConfirmForm(true)}
+                className="px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors whitespace-nowrap"
+              >
+                Verify now
+              </button>
+            )}
+          </div>
         </div>
-
         {showConfirmForm && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <p className="text-sm font-medium text-gray-700 mb-3">
@@ -164,7 +179,6 @@ export default function DashboardVerification() {
                 Yes, changes made
               </button>
             </div>
-
             {hasChanges && (
               <div className="mb-3">
                 <label className="block text-xs text-gray-500 mb-1">
@@ -179,7 +193,6 @@ export default function DashboardVerification() {
                 />
               </div>
             )}
-
             <div className="flex gap-2">
               <button
                 onClick={handleConfirm}
@@ -198,7 +211,25 @@ export default function DashboardVerification() {
           </div>
         )}
       </div>
-
+      {/* EHO Report download */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">EHO Inspection Report</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Download a professional PDF containing your full allergen matrix, dietary declarations,
+              ingredient records, and verification audit trail. Hand it to your EHO officer.
+            </p>
+          </div>
+          <button
+            onClick={handleDownloadReport}
+            disabled={downloading}
+            className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors whitespace-nowrap disabled:opacity-50 flex-shrink-0"
+          >
+            {downloading ? 'Generating…' : 'Download PDF'}
+          </button>
+        </div>
+      </div>
       {/* Verification log */}
       <div>
         <h3 className="text-sm font-semibold text-gray-700 mb-3">Verification history</h3>
