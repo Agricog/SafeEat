@@ -338,7 +338,8 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
   if (!slug) return c.json({ error: 'Invalid venue slug' }, 400)
   try {
     const venues = await sql`
-      SELECT id, name, slug, address, show_nutrition
+      SELECT id, name, slug, address, show_nutrition,
+        show_review_prompt, google_review_url, tripadvisor_url
       FROM venues
       WHERE slug = ${slug} OR id = ${slug}
       LIMIT 1
@@ -373,6 +374,9 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
         slug: venue.slug,
         address: venue.address,
         showNutrition: venue.show_nutrition,
+        showReviewPrompt: venue.show_review_prompt,
+        googleReviewUrl: venue.google_review_url,
+        tripadvisorUrl: venue.tripadvisor_url,
       },
       dishes: dishes.map((d) => ({
         id: d.id,
@@ -531,7 +535,8 @@ app.get('/api/dashboard/me', async (c) => {
   const clerkUserId = c.get('clerkUserId')
   try {
     const venues = await sql`
-      SELECT id, name, slug, address, phone, email, show_nutrition
+      SELECT id, name, slug, address, phone, email, show_nutrition,
+        google_review_url, tripadvisor_url, show_review_prompt
       FROM venues
       WHERE clerk_user_id = ${clerkUserId}
       LIMIT 1
@@ -1070,7 +1075,8 @@ app.get('/api/dashboard/:venueId/venue', async (c) => {
   const venueId = c.get('venueId')
   try {
     const venues = await sql`
-      SELECT id, name, slug, address, phone, email, show_nutrition
+      SELECT id, name, slug, address, phone, email, show_nutrition,
+        google_review_url, tripadvisor_url, show_review_prompt
       FROM venues
       WHERE id = ${venueId}
       LIMIT 1
@@ -1113,6 +1119,15 @@ app.put('/api/dashboard/:venueId/venue', async (c) => {
   if (body.showNutrition !== undefined) {
     updates.showNutrition = !!body.showNutrition
   }
+  if (body.googleReviewUrl !== undefined) {
+    updates.googleReviewUrl = sanitiseString(body.googleReviewUrl, 500)
+  }
+  if (body.tripadvisorUrl !== undefined) {
+    updates.tripadvisorUrl = sanitiseString(body.tripadvisorUrl, 500)
+  }
+  if (body.showReviewPrompt !== undefined) {
+    updates.showReviewPrompt = !!body.showReviewPrompt
+  }
   try {
     const venues = await sql`
       UPDATE venues
@@ -1121,9 +1136,13 @@ app.put('/api/dashboard/:venueId/venue', async (c) => {
         address = COALESCE(${updates.address ?? null}, address),
         phone = COALESCE(${updates.phone ?? null}, phone),
         email = COALESCE(${updates.email ?? null}, email),
-        show_nutrition = COALESCE(${updates.showNutrition ?? null}, show_nutrition)
+        show_nutrition = COALESCE(${updates.showNutrition ?? null}, show_nutrition),
+        google_review_url = COALESCE(${updates.googleReviewUrl ?? null}, google_review_url),
+        tripadvisor_url = COALESCE(${updates.tripadvisorUrl ?? null}, tripadvisor_url),
+        show_review_prompt = COALESCE(${updates.showReviewPrompt ?? null}, show_review_prompt)
       WHERE id = ${venueId}
-      RETURNING id, name, slug, address, phone, email, show_nutrition
+      RETURNING id, name, slug, address, phone, email, show_nutrition,
+        google_review_url, tripadvisor_url, show_review_prompt
     `
     if (venues.length === 0) {
       return c.json({ error: 'Venue not found' }, 404)
