@@ -137,6 +137,20 @@ export const INGREDIENT_ALLERGEN_MAP: readonly IngredientMatch[] = [
   { keyword: 'lupin', allergenIds: ['lupin'], displayName: 'Lupin' },
 
   // -------------------------------------------------------------------------
+  // NON-DAIRY ALTERNATIVES (must be before MILK to prevent false positives)
+  // -------------------------------------------------------------------------
+  { keyword: 'coconut milk', allergenIds: [], displayName: 'Coconut milk (not dairy)' },
+  { keyword: 'coconut cream', allergenIds: [], displayName: 'Coconut cream (not dairy)' },
+  { keyword: 'coconut yoghurt', allergenIds: [], displayName: 'Coconut yoghurt (not dairy)' },
+  { keyword: 'coconut yogurt', allergenIds: [], displayName: 'Coconut yogurt (not dairy)' },
+  { keyword: 'oat milk', allergenIds: ['gluten'], displayName: 'Oat milk (gluten, not dairy)' },
+  { keyword: 'rice milk', allergenIds: [], displayName: 'Rice milk (not dairy)' },
+  { keyword: 'hemp milk', allergenIds: [], displayName: 'Hemp milk (not dairy)' },
+  { keyword: 'nut butter', allergenIds: ['tree_nuts'], displayName: 'Nut butter (tree nuts, not dairy)' },
+  { keyword: 'cocoa butter', allergenIds: [], displayName: 'Cocoa butter (not dairy)' },
+  { keyword: 'shea butter', allergenIds: [], displayName: 'Shea butter (not dairy)' },
+
+  // -------------------------------------------------------------------------
   // MILK
   // -------------------------------------------------------------------------
   { keyword: 'double cream', allergenIds: ['milk'], displayName: 'Double cream' },
@@ -306,22 +320,29 @@ export function detectAllergens(ingredientsText: string): {
     return { allergenIds: [], matches: [] }
   }
 
-  const input = ingredientsText.toLowerCase()
+  // Sort entries by keyword length (longest first) so longer matches take priority
+  const sortedEntries = [...INGREDIENT_ALLERGEN_MAP].sort((a, b) => b.keyword.length - a.keyword.length)
+
+  // Working copy — matched regions are blanked out to prevent substring re-matching
+  let working = ingredientsText.toLowerCase()
   const allergenSet = new Set<string>()
   const matches: { keyword: string; displayName: string; allergenIds: readonly string[] }[] = []
-  const matchedKeywords = new Set<string>()
 
-  for (const entry of INGREDIENT_ALLERGEN_MAP) {
-    if (input.includes(entry.keyword) && !matchedKeywords.has(entry.keyword)) {
-      matchedKeywords.add(entry.keyword)
-      matches.push({
-        keyword: entry.keyword,
-        displayName: entry.displayName,
-        allergenIds: entry.allergenIds,
-      })
-      for (const id of entry.allergenIds) {
-        allergenSet.add(id)
+  for (const entry of sortedEntries) {
+    if (working.includes(entry.keyword)) {
+      // Only add to visible matches if it has allergens (skip non-allergen entries like "coconut milk")
+      if (entry.allergenIds.length > 0) {
+        matches.push({
+          keyword: entry.keyword,
+          displayName: entry.displayName,
+          allergenIds: entry.allergenIds,
+        })
+        for (const id of entry.allergenIds) {
+          allergenSet.add(id)
+        }
       }
+      // Blank out ALL matched regions (including non-allergen entries) to prevent substring re-matching
+      working = working.replaceAll(entry.keyword, '_'.repeat(entry.keyword.length))
     }
   }
 
