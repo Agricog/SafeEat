@@ -38,7 +38,6 @@ Sentry.init({
   enabled: !!process.env.SENTRY_DSN,
   tracesSampleRate: 0.2,
   beforeSend(event) {
-    // Strip sensitive headers
     if (event.request?.headers) {
       delete event.request.headers['authorization']
       delete event.request.headers['cookie']
@@ -142,7 +141,6 @@ app.post('/api/webhooks/stripe', async (c) => {
           `
           console.log(`Subscription activated for venue ${venueId}`)
 
-          // Send welcome email (fire and forget)
           const venues = await sql`SELECT name, email FROM venues WHERE id = ${venueId} LIMIT 1`
           if (venues.length > 0 && venues[0].email) {
             sendWelcomeEmail({ venueEmail: venues[0].email, venueName: venues[0].name })
@@ -212,8 +210,6 @@ app.post('/api/webhooks/stripe', async (c) => {
 
 // ===========================================================================
 // CRON: Verification reminder emails
-// Trigger daily via external cron service (e.g. cron-job.org).
-// Protected by CRON_SECRET to prevent abuse.
 // ===========================================================================
 app.post('/api/cron/verification-reminders', async (c) => {
   const cronSecret = process.env.CRON_SECRET
@@ -224,7 +220,6 @@ app.post('/api/cron/verification-reminders', async (c) => {
   }
 
   try {
-    // Find venues with active subscriptions that haven't verified in 7+ days
     const overdueVenues = await sql`
       SELECT v.id, v.name, v.email,
         EXTRACT(DAY FROM now() - MAX(vl.verified_at))::int AS days_since
@@ -430,7 +425,6 @@ app.post('/api/contact', rateLimitProfile(), async (c) => {
       VALUES (${name}, ${email}, ${message})
     `
     console.log(`Contact form: ${name} <${email}>`)
-    // Send notification email to admin (fire and forget)
     sendContactNotification({ name, email, message })
       .catch((err) => console.error('Contact notification email error:', err))
     return c.json({ sent: true }, 201)
@@ -492,7 +486,6 @@ app.post('/api/dashboard/venues', async (c) => {
   if (!name) return c.json({ error: 'Venue name is required' }, 400)
 
   try {
-    // Check user doesn't already have a venue
     const existing = await sql`
       SELECT id FROM venues WHERE clerk_user_id = ${clerkUserId} LIMIT 1
     `
@@ -500,12 +493,10 @@ app.post('/api/dashboard/venues', async (c) => {
       return c.json({ error: 'You already have a venue' }, 409)
     }
 
-    // Generate slug from name
     const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50)
     const slugSuffix = Math.random().toString(36).slice(2, 6)
     const slug = `${baseSlug}-${slugSuffix}`
 
-    // Generate venue ID
     const venueId = `venue-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
     const venues = await sql`
@@ -563,7 +554,7 @@ app.get('/api/dashboard/:venueId/dishes', async (c) => {
 
   try {
     const dishes = await sql`
-      SELECT id, name, description, price_pence, category, allergen_mask, active, sort_order
+      SELECT id, name, description, price_pence, category, allergen_mask, ingredients, active, sort_order
       FROM dishes
       WHERE venue_id = ${venueId}
       ORDER BY sort_order, created_at
@@ -594,6 +585,7 @@ app.post('/api/dashboard/:venueId/dishes', async (c) => {
   const pricePence = sanitisePrice(body.pricePence)
   const category = sanitiseCategory(body.category)
   const allergenMask = sanitiseAllergenMask(body.allergenMask ?? 0)
+  const ingredients = sanitiseString(body.ingredients, 2000)
 
   if (!name) return c.json({ error: 'Dish name is required (max 200 chars)' }, 400)
   if (pricePence === null) return c.json({ error: 'Price must be 0-9999999 pence' }, 400)
@@ -602,9 +594,9 @@ app.post('/api/dashboard/:venueId/dishes', async (c) => {
 
   try {
     const dishes = await sql`
-      INSERT INTO dishes (venue_id, name, description, price_pence, category, allergen_mask)
-      VALUES (${venueId}, ${name}, ${description}, ${pricePence}, ${category}, ${allergenMask})
-      RETURNING id, name, description, price_pence, category, allergen_mask
+      INSERT INTO dishes (venue_id, name, description, price_pence, category, allergen_mask, ingredients)
+      VALUES (${venueId}, ${name}, ${description}, ${pricePence}, ${category}, ${allergenMask}, ${ingredients})
+      RETURNING id, name, description, price_pence, category, allergen_mask, ingredients
     `
     return c.json({ dish: dishes[0] }, 201)
   } catch (err) {
@@ -652,6 +644,9 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
   if (body.active !== undefined) {
     updates.active = !!body.active
   }
+  if (body.ingredients !== undefined) {
+    updates.ingredients = sanitiseString(body.ingredients, 2000)
+  }
 
   try {
     const dishes = await sql`
@@ -662,9 +657,10 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
         price_pence = COALESCE(${updates.pricePence ?? null}, price_pence),
         category = COALESCE(${updates.category ?? null}, category),
         allergen_mask = COALESCE(${updates.allergenMask ?? null}, allergen_mask),
-        active = COALESCE(${updates.active ?? null}, active)
+        active = COALESCE(${updates.active ?? null}, active),
+        ingredients = COALESCE(${updates.ingredients ?? null}, ingredients)
       WHERE id = ${dishId} AND venue_id = ${venueId}
-      RETURNING id, name, description, price_pence, category, allergen_mask, active
+      RETURNING id, name, description, price_pence, category, allergen_mask, ingredients, active
     `
     if (dishes.length === 0) {
       return c.json({ error: 'Dish not found' }, 404)
