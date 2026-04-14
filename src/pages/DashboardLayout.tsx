@@ -4,27 +4,24 @@ import { UserButton } from '@clerk/clerk-react'
 import { useApi } from '../lib/api'
 import { VenueProvider, type VenueContext } from '../lib/VenueContext'
 import DashboardOnboarding from './DashboardOnboarding'
-
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Overview', icon: '📊', end: true },
   { to: '/dashboard/menu', label: 'Menu', icon: '🍽️', end: false },
   { to: '/dashboard/customers', label: 'Customers', icon: '👥', end: false },
+  { to: '/dashboard/notifications', label: 'Notifications', icon: '📣', end: false },
   { to: '/dashboard/verification', label: 'Verification', icon: '✅', end: false },
   { to: '/dashboard/settings', label: 'Settings', icon: '⚙️', end: false },
 ]
-
 export default function DashboardLayout() {
   const { request } = useApi()
   const [venue, setVenue] = useState<VenueContext | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
-
   const fetchVenue = useCallback(() => {
     setLoading(true)
     setError(null)
     setNeedsOnboarding(false)
-
     request<{ venue: { id: string; name: string; slug: string; address: string } }>('/api/dashboard/me')
       .then((data) => {
         setVenue({
@@ -45,11 +42,9 @@ export default function DashboardLayout() {
         setLoading(false)
       })
   }, [request])
-
   useEffect(() => {
     fetchVenue()
   }, [fetchVenue])
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -60,11 +55,9 @@ export default function DashboardLayout() {
       </div>
     )
   }
-
   if (needsOnboarding) {
     return <DashboardOnboarding onComplete={fetchVenue} />
   }
-
   if (error || !venue) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -84,7 +77,6 @@ export default function DashboardLayout() {
       </div>
     )
   }
-
   return (
     <VenueProvider value={venue}>
       <div className="min-h-screen bg-gray-50">
@@ -117,7 +109,6 @@ export default function DashboardLayout() {
             ))}
           </nav>
         </header>
-
         <div className="lg:flex">
           {/* Desktop sidebar */}
           <aside className="hidden lg:flex lg:flex-col lg:w-56 lg:border-r lg:border-gray-200 lg:bg-white lg:min-h-screen lg:p-4">
@@ -148,7 +139,6 @@ export default function DashboardLayout() {
               ))}
             </nav>
           </aside>
-
           {/* Main content */}
           <main className="flex-1 p-4 lg:p-8 max-w-4xl">
             <Outlet />
