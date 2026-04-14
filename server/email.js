@@ -5,7 +5,6 @@
 const RESEND_API_URL = 'https://api.resend.com/emails'
 const FROM_ADDRESS = 'SafeEat <hello@safeeat.co.uk>'
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'hello@safeeat.co.uk'
-
 /**
  * Send an email via Resend.
  * Fails silently — logs errors but never throws (emails should not break API responses).
@@ -38,7 +37,6 @@ async function sendEmail({ to, subject, html }) {
     return null
   }
 }
-
 // ---------------------------------------------------------------------------
 // 1. Contact form notification → admin inbox
 // ---------------------------------------------------------------------------
@@ -67,7 +65,6 @@ export async function sendContactNotification({ name, email, message }) {
     `,
   })
 }
-
 // ---------------------------------------------------------------------------
 // 2. Welcome email → new subscriber after Stripe checkout
 // ---------------------------------------------------------------------------
@@ -107,7 +104,6 @@ export async function sendWelcomeEmail({ venueEmail, venueName }) {
     `,
   })
 }
-
 // ---------------------------------------------------------------------------
 // 3. Verification reminder → venues that haven't verified in 7+ days
 // ---------------------------------------------------------------------------
@@ -145,7 +141,6 @@ export async function sendVerificationReminder({ venueEmail, venueName, daysSinc
     `,
   })
 }
-
 // ---------------------------------------------------------------------------
 // 4. Weekly insight email → venue owners every Monday morning
 // ---------------------------------------------------------------------------
@@ -155,15 +150,12 @@ const ALLERGEN_NAMES = {
   mustard: 'Mustard', tree_nuts: 'Tree nuts', peanuts: 'Peanuts',
   sesame: 'Sesame', soybeans: 'Soya', sulphites: 'Sulphites',
 }
-
 const ALLERGEN_BITS = [
   'celery', 'gluten', 'crustaceans', 'eggs', 'fish', 'lupin', 'milk',
   'molluscs', 'mustard', 'tree_nuts', 'peanuts', 'sesame', 'soybeans', 'sulphites',
 ]
-
 export async function sendWeeklyInsight({ venueEmail, venueName, stats }) {
   if (!venueEmail) return null
-
   const {
     scansThisWeek = 0,
     scansPreviousWeek = 0,
@@ -175,16 +167,12 @@ export async function sendWeeklyInsight({ venueEmail, venueName, stats }) {
     totalDishes = 0,
     lastVerifiedDaysAgo = null,
   } = stats
-
-  // Scan trend
   const scanDiff = scansThisWeek - scansPreviousWeek
   const scanTrend = scanDiff > 0
     ? `<span style="color: #16a34a;">↑ ${scanDiff} more than last week</span>`
     : scanDiff < 0
       ? `<span style="color: #dc2626;">↓ ${Math.abs(scanDiff)} fewer than last week</span>`
       : '<span style="color: #6b7280;">Same as last week</span>'
-
-  // Top allergens display (up to 5)
   const topAllergenRows = topAllergens.slice(0, 5).map((a) => {
     const name = ALLERGEN_NAMES[a.allergen] || a.allergen
     const pct = a.percentage
@@ -201,8 +189,6 @@ export async function sendWeeklyInsight({ venueEmail, venueName, stats }) {
       </tr>
     `
   }).join('')
-
-  // Generate recommendation
   let recommendation = ''
   if (lastVerifiedDaysAgo !== null && lastVerifiedDaysAgo > 7) {
     recommendation = `<strong>Action needed:</strong> Your menu hasn't been verified in ${lastVerifiedDaysAgo} days. <a href="https://safeeat.co.uk/dashboard/verification" style="color: #16a34a;">Verify now</a> to keep your audit trail current.`
@@ -216,11 +202,9 @@ export async function sendWeeklyInsight({ venueEmail, venueName, stats }) {
   } else {
     recommendation = `<strong>Looking good:</strong> Your menu is verified and customers are scanning. Keep it up!`
   }
-
   const weekStart = new Date()
   weekStart.setDate(weekStart.getDate() - 7)
   const dateRange = `${weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-
   return sendEmail({
     to: venueEmail,
     subject: `${venueName}: ${scansThisWeek} menu scans this week`,
@@ -231,8 +215,6 @@ export async function sendWeeklyInsight({ venueEmail, venueName, stats }) {
           <h1 style="color: #111827; font-size: 20px; margin: 8px 0 4px;">Your weekly SafeEat report</h1>
           <p style="color: #6b7280; margin: 0; font-size: 13px;">${dateRange}</p>
         </div>
-
-        <!-- Key metrics -->
         <div style="display: flex; gap: 12px; margin-bottom: 24px;">
           <div style="flex: 1; background: #f0fdf4; border-radius: 12px; padding: 16px; text-align: center;">
             <p style="color: #16a34a; font-size: 28px; font-weight: 700; margin: 0;">${scansThisWeek}</p>
@@ -247,15 +229,11 @@ export async function sendWeeklyInsight({ venueEmail, venueName, stats }) {
             <p style="color: #6b7280; font-size: 12px; margin: 4px 0 0;">New opt-ins</p>
           </div>
         </div>
-
-        <!-- Scan trend -->
         <div style="margin-bottom: 20px; padding: 12px 16px; background: #f9fafb; border-radius: 8px;">
           <p style="margin: 0; font-size: 14px; color: #374151;">
             Scan trend: ${scanTrend}
           </p>
         </div>
-
-        <!-- Totals -->
         <div style="margin-bottom: 24px; padding: 12px 16px; background: #f9fafb; border-radius: 8px;">
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
@@ -272,8 +250,6 @@ export async function sendWeeklyInsight({ venueEmail, venueName, stats }) {
             </tr>
           </table>
         </div>
-
-        <!-- Top allergens -->
         ${topAllergens.length > 0 ? `
           <div style="margin-bottom: 24px;">
             <h2 style="color: #111827; font-size: 15px; margin: 0 0 12px;">Your customers' top allergens</h2>
@@ -283,19 +259,14 @@ export async function sendWeeklyInsight({ venueEmail, venueName, stats }) {
             <p style="color: #9ca3af; font-size: 11px; margin: 8px 0 0;">Based on saved customer profiles at your venue</p>
           </div>
         ` : ''}
-
-        <!-- Recommendation -->
         <div style="background: #fffbeb; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
           <p style="color: #92400e; margin: 0; font-size: 14px; line-height: 1.6;">
             ${recommendation}
           </p>
         </div>
-
-        <!-- CTA -->
         <div style="text-align: center; margin-bottom: 24px;">
           <a href="https://safeeat.co.uk/dashboard" style="display: inline-block; padding: 12px 32px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Go to dashboard</a>
         </div>
-
         <p style="color: #9ca3af; font-size: 11px; text-align: center;">
           You're receiving this because you have an active SafeEat subscription.<br>
           This report is sent every Monday morning.
@@ -304,7 +275,38 @@ export async function sendWeeklyInsight({ venueEmail, venueName, stats }) {
     `,
   })
 }
-
+// ---------------------------------------------------------------------------
+// 5. Customer notification → allergen-targeted marketing email
+// ---------------------------------------------------------------------------
+export async function sendCustomerNotification({ to, subject, message, venueName, venueSlug }) {
+  if (!to) return null
+  return sendEmail({
+    to,
+    subject,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 36px;">🍽️</span>
+          <h1 style="color: #111827; font-size: 20px; margin: 8px 0 4px;">News from ${escapeHtml(venueName)}</h1>
+        </div>
+        <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <p style="color: #374151; margin: 0; font-size: 15px; line-height: 1.7;">
+            ${escapeHtml(message).replace(/\n/g, '<br>')}
+          </p>
+        </div>
+        <div style="text-align: center; margin-bottom: 24px;">
+          <a href="https://safeeat.co.uk/menu/${escapeHtml(venueSlug)}" style="display: inline-block; padding: 12px 32px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">View our menu</a>
+        </div>
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 16px;">
+          <p style="color: #9ca3af; font-size: 11px; text-align: center; margin: 0;">
+            You're receiving this because you saved your allergen profile at ${escapeHtml(venueName)} and opted in to updates.<br>
+            Sent via <a href="https://safeeat.co.uk" style="color: #16a34a;">SafeEat</a>
+          </p>
+        </div>
+      </div>
+    `,
+  })
+}
 // ---------------------------------------------------------------------------
 // Utility
 // ---------------------------------------------------------------------------
