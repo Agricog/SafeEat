@@ -614,6 +614,46 @@ app.get('/api/dashboard/:venueId/stats', async (c) => {
   }
 })
 // ---------------------------------------------------------------------------
+// DASHBOARD: Analytics (30-day scan history)
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/:venueId/analytics', async (c) => {
+  const venueId = c.get('venueId')
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
+    const [dailyScans, newProfiles, returnScans, totalScans] = await Promise.all([
+      sql`SELECT DATE(scanned_at) as date, COUNT(*)::int as count
+        FROM menu_scans WHERE venue_id = ${venueId} AND scanned_at > ${thirtyDaysAgo}
+        GROUP BY DATE(scanned_at) ORDER BY date`,
+      sql`SELECT COUNT(*)::int as count FROM customer_profiles
+        WHERE venue_id = ${venueId} AND created_at > ${thirtyDaysAgo}`,
+      sql`SELECT COUNT(*)::int as count FROM menu_scans
+        WHERE venue_id = ${venueId} AND scanned_at > ${thirtyDaysAgo} AND is_return = true`,
+      sql`SELECT COUNT(*)::int as count FROM menu_scans
+        WHERE venue_id = ${venueId} AND scanned_at > ${thirtyDaysAgo}`,
+    ])
+    // Fill in missing days with 0
+    const filled = []
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000)
+      const dateStr = d.toISOString().slice(0, 10)
+      const found = dailyScans.find((r) => r.date && r.date.toISOString().slice(0, 10) === dateStr)
+      filled.push({ date: dateStr, count: found ? found.count : 0 })
+    }
+    const total30 = totalScans[0].count
+    const returnRate = total30 > 0 ? Math.round((returnScans[0].count / total30) * 100) : 0
+    return c.json({
+      dailyScans: filled,
+      totalScans30d: total30,
+      totalProfiles30d: newProfiles[0].count,
+      returnRate,
+    })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/analytics', venueId } })
+    console.error('Analytics error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
 // DASHBOARD: Get dishes for venue
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/dishes', async (c) => {
