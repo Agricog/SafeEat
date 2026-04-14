@@ -11,8 +11,22 @@ interface Dish {
   description: string
   pricePence: number
   allergenMask: number
+  ingredients: string
   category: string
   active: boolean
+  isVegan: boolean
+  isVegetarian: boolean
+  isGlutenFree: boolean
+  isDairyFree: boolean
+  isHalal: boolean
+  isKosher: boolean
+  calories: number | null
+  proteinG: number | null
+  carbsG: number | null
+  fatG: number | null
+  fibreG: number | null
+  sugarG: number | null
+  saltG: number | null
 }
 
 function formatPrice(pence: number): string {
@@ -26,8 +40,81 @@ function dishToFormData(dish: Dish): DishFormData {
     pricePounds: (dish.pricePence / 100).toFixed(2),
     category: dish.category,
     allergenIds: getIdsFromMask(dish.allergenMask),
+    ingredients: dish.ingredients || '',
+    isVegan: dish.isVegan,
+    isVegetarian: dish.isVegetarian,
+    isGlutenFree: dish.isGlutenFree,
+    isDairyFree: dish.isDairyFree,
+    isHalal: dish.isHalal,
+    isKosher: dish.isKosher,
+    calories: dish.calories != null ? String(dish.calories) : '',
+    proteinG: dish.proteinG != null ? String(dish.proteinG) : '',
+    carbsG: dish.carbsG != null ? String(dish.carbsG) : '',
+    fatG: dish.fatG != null ? String(dish.fatG) : '',
+    fibreG: dish.fibreG != null ? String(dish.fibreG) : '',
+    sugarG: dish.sugarG != null ? String(dish.sugarG) : '',
+    saltG: dish.saltG != null ? String(dish.saltG) : '',
   }
 }
+
+function mapDishFromApi(d: any): Dish {
+  return {
+    id: d.id,
+    name: d.name,
+    description: d.description,
+    pricePence: d.price_pence,
+    allergenMask: d.allergen_mask,
+    ingredients: d.ingredients || '',
+    category: d.category,
+    active: d.active,
+    isVegan: d.is_vegan || false,
+    isVegetarian: d.is_vegetarian || false,
+    isGlutenFree: d.is_gluten_free || false,
+    isDairyFree: d.is_dairy_free || false,
+    isHalal: d.is_halal || false,
+    isKosher: d.is_kosher || false,
+    calories: d.calories ?? null,
+    proteinG: d.protein_g ?? null,
+    carbsG: d.carbs_g ?? null,
+    fatG: d.fat_g ?? null,
+    fibreG: d.fibre_g ?? null,
+    sugarG: d.sugar_g ?? null,
+    saltG: d.salt_g ?? null,
+  }
+}
+
+function buildDishBody(data: DishFormData) {
+  return {
+    name: data.name.trim(),
+    description: data.description.trim(),
+    pricePence: Math.round(parseFloat(data.pricePounds) * 100),
+    category: data.category,
+    allergenMask: buildMaskFromIds(data.allergenIds),
+    ingredients: data.ingredients.trim(),
+    isVegan: data.isVegan,
+    isVegetarian: data.isVegetarian,
+    isGlutenFree: data.isGlutenFree,
+    isDairyFree: data.isDairyFree,
+    isHalal: data.isHalal,
+    isKosher: data.isKosher,
+    calories: data.calories.trim() || null,
+    proteinG: data.proteinG.trim() || null,
+    carbsG: data.carbsG.trim() || null,
+    fatG: data.fatG.trim() || null,
+    fibreG: data.fibreG.trim() || null,
+    sugarG: data.sugarG.trim() || null,
+    saltG: data.saltG.trim() || null,
+  }
+}
+
+const DIETARY_BADGES = [
+  { key: 'isVegan', label: 'Vegan', icon: '🌱' },
+  { key: 'isVegetarian', label: 'Vegetarian', icon: '🥕' },
+  { key: 'isGlutenFree', label: 'GF', icon: '🌾' },
+  { key: 'isDairyFree', label: 'DF', icon: '🥛' },
+  { key: 'isHalal', label: 'Halal', icon: '☪️' },
+  { key: 'isKosher', label: 'Kosher', icon: '✡️' },
+] as const
 
 export default function DashboardMenu() {
   const { request } = useApi()
@@ -43,22 +130,10 @@ export default function DashboardMenu() {
 
   useEffect(() => {
     let cancelled = false
-    request<{ dishes: Array<{ id: string; name: string; description: string; price_pence: number; category: string; allergen_mask: number; active: boolean }> }>(
-      `/api/dashboard/${venueId}/dishes`
-    )
+    request<{ dishes: any[] }>(`/api/dashboard/${venueId}/dishes`)
       .then((data) => {
         if (cancelled) return
-        setDishes(
-          data.dishes.map((d) => ({
-            id: d.id,
-            name: d.name,
-            description: d.description,
-            pricePence: d.price_pence,
-            allergenMask: d.allergen_mask,
-            category: d.category,
-            active: d.active,
-          }))
-        )
+        setDishes(data.dishes.map(mapDishFromApi))
       })
       .catch((err) => { if (!cancelled) setError(err.message) })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -69,28 +144,11 @@ export default function DashboardMenu() {
     setSaving(true)
     setError(null)
     try {
-      const res = await request<{ dish: { id: string; name: string; description: string; price_pence: number; category: string; allergen_mask: number } }>(
+      const res = await request<{ dish: any }>(
         `/api/dashboard/${venueId}/dishes`,
-        {
-          method: 'POST',
-          body: {
-            name: data.name.trim(),
-            description: data.description.trim(),
-            pricePence: Math.round(parseFloat(data.pricePounds) * 100),
-            category: data.category,
-            allergenMask: buildMaskFromIds(data.allergenIds),
-          },
-        }
+        { method: 'POST', body: buildDishBody(data) }
       )
-      setDishes([...dishes, {
-        id: res.dish.id,
-        name: res.dish.name,
-        description: res.dish.description,
-        pricePence: res.dish.price_pence,
-        allergenMask: res.dish.allergen_mask,
-        category: res.dish.category,
-        active: true,
-      }])
+      setDishes([...dishes, { ...mapDishFromApi(res.dish), active: true }])
       setShowAddForm(false)
     } catch (err: any) {
       setError(err.message)
@@ -104,24 +162,11 @@ export default function DashboardMenu() {
     setSaving(true)
     setError(null)
     try {
-      const res = await request<{ dish: { id: string; name: string; description: string; price_pence: number; category: string; allergen_mask: number; active: boolean } }>(
+      const res = await request<{ dish: any }>(
         `/api/dashboard/${venueId}/dishes/${editingId}`,
-        {
-          method: 'PUT',
-          body: {
-            name: data.name.trim(),
-            description: data.description.trim(),
-            pricePence: Math.round(parseFloat(data.pricePounds) * 100),
-            category: data.category,
-            allergenMask: buildMaskFromIds(data.allergenIds),
-          },
-        }
+        { method: 'PUT', body: buildDishBody(data) }
       )
-      setDishes(dishes.map((d) =>
-        d.id === editingId
-          ? { id: res.dish.id, name: res.dish.name, description: res.dish.description, pricePence: res.dish.price_pence, allergenMask: res.dish.allergen_mask, category: res.dish.category, active: res.dish.active }
-          : d
-      ))
+      setDishes(dishes.map((d) => d.id === editingId ? mapDishFromApi(res.dish) : d))
       setEditingId(null)
     } catch (err: any) {
       setError(err.message)
@@ -212,6 +257,27 @@ export default function DashboardMenu() {
                           {dish.description && (
                             <p className="text-sm text-gray-500 mt-0.5">{dish.description}</p>
                           )}
+                          {dish.ingredients && (
+                            <p className="text-xs text-gray-400 mt-1 italic">
+                              Ingredients: {dish.ingredients}
+                            </p>
+                          )}
+
+                          {/* Dietary badges */}
+                          {DIETARY_BADGES.some((b) => dish[b.key as keyof Dish]) && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {DIETARY_BADGES.map((b) =>
+                                dish[b.key as keyof Dish] ? (
+                                  <span key={b.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-se-green-50 border border-se-green-200 text-xs text-se-green-700 font-medium">
+                                    <span>{b.icon}</span>
+                                    <span>{b.label}</span>
+                                  </span>
+                                ) : null
+                              )}
+                            </div>
+                          )}
+
+                          {/* Allergen badges */}
                           {dish.allergenMask > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
                               {getIdsFromMask(dish.allergenMask).map((aid) => (
@@ -221,6 +287,16 @@ export default function DashboardMenu() {
                           )}
                           {dish.allergenMask === 0 && (
                             <p className="text-xs text-se-green-600 mt-2">No allergens — safe for everyone</p>
+                          )}
+
+                          {/* Nutrition summary */}
+                          {dish.calories != null && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {dish.calories} kcal
+                              {dish.proteinG != null && ` · ${dish.proteinG}g protein`}
+                              {dish.carbsG != null && ` · ${dish.carbsG}g carbs`}
+                              {dish.fatG != null && ` · ${dish.fatG}g fat`}
+                            </p>
                           )}
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
