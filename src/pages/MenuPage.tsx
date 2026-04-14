@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import AllergenSelector from '../components/AllergenSelector'
 import AllergenBadge from '../components/AllergenBadge'
 import VerifiedBadge from '../components/VerifiedBadge'
@@ -44,7 +44,7 @@ interface MenuData {
 }
 
 function formatPrice(pence: number): string {
-  return `£${(pence / 100).toFixed(2)}`
+  return `\u00A3${(pence / 100).toFixed(2)}`
 }
 
 const DIETARY_FILTERS = [
@@ -52,12 +52,13 @@ const DIETARY_FILTERS = [
   { key: 'isVegetarian', label: 'Vegetarian', icon: '🥕' },
   { key: 'isGlutenFree', label: 'Gluten-free', icon: '🌾' },
   { key: 'isDairyFree', label: 'Dairy-free', icon: '🥛' },
-  { key: 'isHalal', label: 'Halal', icon: '☪️' },
-  { key: 'isKosher', label: 'Kosher', icon: '✡️' },
+  { key: 'isHalal', label: 'Halal' },
+  { key: 'isKosher', label: 'Kosher' },
 ] as const
 
 export default function MenuPage() {
   const { venueId } = useParams<{ venueId: string }>()
+  const [searchParams] = useSearchParams()
 
   const [menuData, setMenuData] = useState<MenuData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -94,6 +95,21 @@ export default function MenuPage() {
   const [showSavePrompt, setShowSavePrompt] = useState(false)
   const [promptDismissed, setPromptDismissed] = useState(false)
   const [savedConfirmation, setSavedConfirmation] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
+
+  // Load allergens from URL params (shareable link)
+  const [urlAllergensApplied, setUrlAllergensApplied] = useState(false)
+  useEffect(() => {
+    if (urlAllergensApplied) return
+    const allergenParam = searchParams.get('allergens')
+    if (allergenParam && !profile) {
+      const ids = allergenParam.split(',').filter((id) => id.trim())
+      if (ids.length > 0) {
+        setSelectedAllergens(ids)
+        setUrlAllergensApplied(true)
+      }
+    }
+  }, [searchParams, profile, urlAllergensApplied])
 
   useEffect(() => {
     if (profile) {
@@ -103,7 +119,6 @@ export default function MenuPage() {
   }, [profile])
 
   const [selectorWasOpen, setSelectorWasOpen] = useState(false)
-
   useEffect(() => {
     if (showSelector) setSelectorWasOpen(true)
   }, [showSelector])
@@ -144,7 +159,36 @@ export default function MenuPage() {
     })
   }
 
-  // Check if any dishes have dietary flags set (to decide whether to show the filter bar)
+  const handleShare = async () => {
+    if (!venue || selectedAllergens.length === 0) return
+    const url = `${window.location.origin}/menu/${venue.slug}?allergens=${selectedAllergens.join(',')}`
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${venue.name} - Safe menu`,
+          text: `Check out the allergen-filtered menu at ${venue.name}`,
+          url,
+        })
+      } else {
+        await navigator.clipboard.writeText(url)
+        setShareCopied(true)
+        setTimeout(() => setShareCopied(false), 2000)
+      }
+    } catch {
+      // Fallback to clipboard
+      try {
+        await navigator.clipboard.writeText(url)
+        setShareCopied(true)
+        setTimeout(() => setShareCopied(false), 2000)
+      } catch {
+        // Final fallback
+        prompt('Copy this link:', url)
+      }
+    }
+  }
+
+  // Check if any dishes have dietary flags set
   const hasDietaryData = useMemo(() =>
     dishes.some((d) => d.isVegan || d.isVegetarian || d.isGlutenFree || d.isDairyFree || d.isHalal || d.isKosher),
     [dishes]
@@ -156,8 +200,6 @@ export default function MenuPage() {
     const cats: Record<string, (Dish & { safe: boolean; dietaryMatch: boolean })[]> = {}
     for (const dish of dishes) {
       const safe = isDishSafe(dish.allergenMask, customerMask)
-
-      // Check dietary filters
       let dietaryMatch = true
       for (const key of activeDietaryFilters) {
         if (!dish[key as keyof Dish]) {
@@ -165,7 +207,6 @@ export default function MenuPage() {
           break
         }
       }
-
       if (!cats[dish.category]) cats[dish.category] = []
       cats[dish.category].push({ ...dish, safe, dietaryMatch })
     }
@@ -180,7 +221,7 @@ export default function MenuPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-4xl mb-3">🍽️</div>
-          <p className="text-sm text-gray-500">Loading menu…</p>
+          <p className="text-sm text-gray-500">Loading menu...</p>
         </div>
       </div>
     )
@@ -214,13 +255,23 @@ export default function MenuPage() {
               <VerifiedBadge verifiedAt={verification?.verifiedAt ?? null} />
             </div>
             <div className="flex items-center gap-2">
+              {/* Share button */}
+              {selectedAllergens.length > 0 && (
+                <button
+                  onClick={handleShare}
+                  className="px-2.5 py-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                  title="Share filtered menu"
+                >
+                  {shareCopied ? 'Copied!' : 'Share'}
+                </button>
+              )}
               {profile && (
                 <button
                   onClick={handleDeleteProfile}
                   className="px-2 py-1 rounded-full text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                   title="Delete saved profile"
                 >
-                  ✕ Profile
+                  x Profile
                 </button>
               )}
               <button
@@ -253,7 +304,6 @@ export default function MenuPage() {
           {hasDietaryData && (
             <div className="mt-3 flex flex-wrap gap-1.5 pb-1">
               {DIETARY_FILTERS.map((f) => {
-                // Only show filter if at least one dish has this flag
                 const hasFlag = dishes.some((d) => d[f.key as keyof Dish])
                 if (!hasFlag) return null
                 const active = activeDietaryFilters.has(f.key)
@@ -267,7 +317,7 @@ export default function MenuPage() {
                         : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
                     }`}
                   >
-                    <span>{f.icon}</span>
+                    {'icon' in f && <span>{f.icon}</span>}
                     <span>{f.label}</span>
                   </button>
                 )
@@ -277,11 +327,21 @@ export default function MenuPage() {
         </div>
       </header>
 
+      {/* URL-shared allergen notice */}
+      {urlAllergensApplied && !profile && (
+        <div className="max-w-lg mx-auto">
+          <div className="mx-4 mt-4 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 flex items-center gap-2">
+            <span className="text-blue-500">i</span>
+            <p className="text-sm text-blue-700">Menu pre-filtered from a shared link. You can adjust your allergens above.</p>
+          </div>
+        </div>
+      )}
+
       {savedConfirmation && !showSavePrompt && (
         <div className="max-w-lg mx-auto">
           <div className="mx-4 mt-4 px-4 py-3 rounded-xl bg-se-green-50 border border-se-green-200 flex items-center gap-2">
-            <span className="text-se-green-600">✓</span>
-            <p className="text-sm text-se-green-700 font-medium">Profile saved — your menu is personalised</p>
+            <span className="text-se-green-600">&#10003;</span>
+            <p className="text-sm text-se-green-700 font-medium">Profile saved - your menu is personalised</p>
           </div>
         </div>
       )}
@@ -334,12 +394,12 @@ export default function MenuPage() {
                             {/* Dietary badges */}
                             {(dish.isVegan || dish.isVegetarian || dish.isGlutenFree || dish.isDairyFree || dish.isHalal || dish.isKosher) && (
                               <div className="flex flex-wrap gap-1 mt-2">
-                                {dish.isVegan && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">🌱 Vegan</span>}
-                                {dish.isVegetarian && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">🥕 Vegetarian</span>}
-                                {dish.isGlutenFree && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">🌾 GF</span>}
-                                {dish.isDairyFree && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">🥛 DF</span>}
-                                {dish.isHalal && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-medium">☪️ Halal</span>}
-                                {dish.isKosher && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-medium">✡️ Kosher</span>}
+                                {dish.isVegan && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">Vegan</span>}
+                                {dish.isVegetarian && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">Vegetarian</span>}
+                                {dish.isGlutenFree && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">GF</span>}
+                                {dish.isDairyFree && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">DF</span>}
+                                {dish.isHalal && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-medium">Halal</span>}
+                                {dish.isKosher && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-medium">Kosher</span>}
                               </div>
                             )}
 
@@ -352,16 +412,16 @@ export default function MenuPage() {
                               </div>
                             )}
 
-                            {/* Nutrition (only if venue has toggled it on and dish has data) */}
+                            {/* Nutrition */}
                             {venue.showNutrition && dish.calories != null && (
                               <div className="mt-2 text-xs text-gray-400">
                                 <span className="font-medium text-gray-500">{dish.calories} kcal</span>
-                                {dish.proteinG != null && <span> · {dish.proteinG}g protein</span>}
-                                {dish.carbsG != null && <span> · {dish.carbsG}g carbs</span>}
-                                {dish.fatG != null && <span> · {dish.fatG}g fat</span>}
-                                {dish.fibreG != null && <span> · {dish.fibreG}g fibre</span>}
-                                {dish.sugarG != null && <span> · {dish.sugarG}g sugar</span>}
-                                {dish.saltG != null && <span> · {dish.saltG}g salt</span>}
+                                {dish.proteinG != null && <span> - {dish.proteinG}g protein</span>}
+                                {dish.carbsG != null && <span> - {dish.carbsG}g carbs</span>}
+                                {dish.fatG != null && <span> - {dish.fatG}g fat</span>}
+                                {dish.fibreG != null && <span> - {dish.fibreG}g fibre</span>}
+                                {dish.sugarG != null && <span> - {dish.sugarG}g sugar</span>}
+                                {dish.saltG != null && <span> - {dish.saltG}g salt</span>}
                               </div>
                             )}
                           </div>
