@@ -265,7 +265,7 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
 
   try {
     const venues = await sql`
-      SELECT id, name, slug, address
+      SELECT id, name, slug, address, show_nutrition
       FROM venues
       WHERE slug = ${slug} OR id = ${slug}
       LIMIT 1
@@ -276,7 +276,9 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
     const venue = venues[0]
 
     const dishes = await sql`
-      SELECT id, name, description, price_pence, category, allergen_mask, sort_order
+      SELECT id, name, description, price_pence, category, allergen_mask, sort_order,
+        is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
+        calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g
       FROM dishes
       WHERE venue_id = ${venue.id} AND active = true
       ORDER BY sort_order, created_at
@@ -301,6 +303,7 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
         name: venue.name,
         slug: venue.slug,
         address: venue.address,
+        showNutrition: venue.show_nutrition,
       },
       dishes: dishes.map((d) => ({
         id: d.id,
@@ -309,6 +312,19 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
         pricePence: d.price_pence,
         category: d.category,
         allergenMask: d.allergen_mask,
+        isVegan: d.is_vegan,
+        isVegetarian: d.is_vegetarian,
+        isGlutenFree: d.is_gluten_free,
+        isDairyFree: d.is_dairy_free,
+        isHalal: d.is_halal,
+        isKosher: d.is_kosher,
+        calories: d.calories,
+        proteinG: d.protein_g,
+        carbsG: d.carbs_g,
+        fatG: d.fat_g,
+        fibreG: d.fibre_g,
+        sugarG: d.sugar_g,
+        saltG: d.salt_g,
       })),
       verification: verifications.length > 0
         ? { verifiedAt: verifications[0].verified_at, type: verifications[0].type }
@@ -449,7 +465,7 @@ app.get('/api/dashboard/me', async (c) => {
   const clerkUserId = c.get('clerkUserId')
   try {
     const venues = await sql`
-      SELECT id, name, slug, address, phone, email
+      SELECT id, name, slug, address, phone, email, show_nutrition
       FROM venues
       WHERE clerk_user_id = ${clerkUserId}
       LIMIT 1
@@ -554,7 +570,10 @@ app.get('/api/dashboard/:venueId/dishes', async (c) => {
 
   try {
     const dishes = await sql`
-      SELECT id, name, description, price_pence, category, allergen_mask, ingredients, active, sort_order
+      SELECT id, name, description, price_pence, category, allergen_mask, ingredients,
+        is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
+        calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g,
+        active, sort_order
       FROM dishes
       WHERE venue_id = ${venueId}
       ORDER BY sort_order, created_at
@@ -586,6 +605,19 @@ app.post('/api/dashboard/:venueId/dishes', async (c) => {
   const category = sanitiseCategory(body.category)
   const allergenMask = sanitiseAllergenMask(body.allergenMask ?? 0)
   const ingredients = sanitiseString(body.ingredients, 2000)
+  const isVegan = !!body.isVegan
+  const isVegetarian = !!body.isVegetarian
+  const isGlutenFree = !!body.isGlutenFree
+  const isDairyFree = !!body.isDairyFree
+  const isHalal = !!body.isHalal
+  const isKosher = !!body.isKosher
+  const calories = body.calories != null && body.calories !== '' ? parseInt(body.calories) || null : null
+  const proteinG = body.proteinG != null && body.proteinG !== '' ? parseFloat(body.proteinG) || null : null
+  const carbsG = body.carbsG != null && body.carbsG !== '' ? parseFloat(body.carbsG) || null : null
+  const fatG = body.fatG != null && body.fatG !== '' ? parseFloat(body.fatG) || null : null
+  const fibreG = body.fibreG != null && body.fibreG !== '' ? parseFloat(body.fibreG) || null : null
+  const sugarG = body.sugarG != null && body.sugarG !== '' ? parseFloat(body.sugarG) || null : null
+  const saltG = body.saltG != null && body.saltG !== '' ? parseFloat(body.saltG) || null : null
 
   if (!name) return c.json({ error: 'Dish name is required (max 200 chars)' }, 400)
   if (pricePence === null) return c.json({ error: 'Price must be 0-9999999 pence' }, 400)
@@ -594,9 +626,15 @@ app.post('/api/dashboard/:venueId/dishes', async (c) => {
 
   try {
     const dishes = await sql`
-      INSERT INTO dishes (venue_id, name, description, price_pence, category, allergen_mask, ingredients)
-      VALUES (${venueId}, ${name}, ${description}, ${pricePence}, ${category}, ${allergenMask}, ${ingredients})
-      RETURNING id, name, description, price_pence, category, allergen_mask, ingredients
+      INSERT INTO dishes (venue_id, name, description, price_pence, category, allergen_mask, ingredients,
+        is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
+        calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g)
+      VALUES (${venueId}, ${name}, ${description}, ${pricePence}, ${category}, ${allergenMask}, ${ingredients},
+        ${isVegan}, ${isVegetarian}, ${isGlutenFree}, ${isDairyFree}, ${isHalal}, ${isKosher},
+        ${calories}, ${proteinG}, ${carbsG}, ${fatG}, ${fibreG}, ${sugarG}, ${saltG})
+      RETURNING id, name, description, price_pence, category, allergen_mask, ingredients,
+        is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
+        calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g
     `
     return c.json({ dish: dishes[0] }, 201)
   } catch (err) {
@@ -647,6 +685,19 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
   if (body.ingredients !== undefined) {
     updates.ingredients = sanitiseString(body.ingredients, 2000)
   }
+  if (body.isVegan !== undefined) updates.isVegan = !!body.isVegan
+  if (body.isVegetarian !== undefined) updates.isVegetarian = !!body.isVegetarian
+  if (body.isGlutenFree !== undefined) updates.isGlutenFree = !!body.isGlutenFree
+  if (body.isDairyFree !== undefined) updates.isDairyFree = !!body.isDairyFree
+  if (body.isHalal !== undefined) updates.isHalal = !!body.isHalal
+  if (body.isKosher !== undefined) updates.isKosher = !!body.isKosher
+  if (body.calories !== undefined) updates.calories = body.calories != null && body.calories !== '' ? parseInt(body.calories) || null : null
+  if (body.proteinG !== undefined) updates.proteinG = body.proteinG != null && body.proteinG !== '' ? parseFloat(body.proteinG) || null : null
+  if (body.carbsG !== undefined) updates.carbsG = body.carbsG != null && body.carbsG !== '' ? parseFloat(body.carbsG) || null : null
+  if (body.fatG !== undefined) updates.fatG = body.fatG != null && body.fatG !== '' ? parseFloat(body.fatG) || null : null
+  if (body.fibreG !== undefined) updates.fibreG = body.fibreG != null && body.fibreG !== '' ? parseFloat(body.fibreG) || null : null
+  if (body.sugarG !== undefined) updates.sugarG = body.sugarG != null && body.sugarG !== '' ? parseFloat(body.sugarG) || null : null
+  if (body.saltG !== undefined) updates.saltG = body.saltG != null && body.saltG !== '' ? parseFloat(body.saltG) || null : null
 
   try {
     const dishes = await sql`
@@ -658,9 +709,24 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
         category = COALESCE(${updates.category ?? null}, category),
         allergen_mask = COALESCE(${updates.allergenMask ?? null}, allergen_mask),
         active = COALESCE(${updates.active ?? null}, active),
-        ingredients = COALESCE(${updates.ingredients ?? null}, ingredients)
+        ingredients = COALESCE(${updates.ingredients ?? null}, ingredients),
+        is_vegan = COALESCE(${updates.isVegan ?? null}, is_vegan),
+        is_vegetarian = COALESCE(${updates.isVegetarian ?? null}, is_vegetarian),
+        is_gluten_free = COALESCE(${updates.isGlutenFree ?? null}, is_gluten_free),
+        is_dairy_free = COALESCE(${updates.isDairyFree ?? null}, is_dairy_free),
+        is_halal = COALESCE(${updates.isHalal ?? null}, is_halal),
+        is_kosher = COALESCE(${updates.isKosher ?? null}, is_kosher),
+        calories = COALESCE(${updates.calories !== undefined ? updates.calories : null}, calories),
+        protein_g = COALESCE(${updates.proteinG !== undefined ? updates.proteinG : null}, protein_g),
+        carbs_g = COALESCE(${updates.carbsG !== undefined ? updates.carbsG : null}, carbs_g),
+        fat_g = COALESCE(${updates.fatG !== undefined ? updates.fatG : null}, fat_g),
+        fibre_g = COALESCE(${updates.fibreG !== undefined ? updates.fibreG : null}, fibre_g),
+        sugar_g = COALESCE(${updates.sugarG !== undefined ? updates.sugarG : null}, sugar_g),
+        salt_g = COALESCE(${updates.saltG !== undefined ? updates.saltG : null}, salt_g)
       WHERE id = ${dishId} AND venue_id = ${venueId}
-      RETURNING id, name, description, price_pence, category, allergen_mask, ingredients, active
+      RETURNING id, name, description, price_pence, category, allergen_mask, ingredients,
+        is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
+        calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g, active
     `
     if (dishes.length === 0) {
       return c.json({ error: 'Dish not found' }, 404)
@@ -779,7 +845,7 @@ app.get('/api/dashboard/:venueId/venue', async (c) => {
 
   try {
     const venues = await sql`
-      SELECT id, name, slug, address, phone, email
+      SELECT id, name, slug, address, phone, email, show_nutrition
       FROM venues
       WHERE id = ${venueId}
       LIMIT 1
@@ -822,6 +888,9 @@ app.put('/api/dashboard/:venueId/venue', async (c) => {
   if (body.email !== undefined) {
     updates.email = sanitiseString(body.email, 254)
   }
+  if (body.showNutrition !== undefined) {
+    updates.showNutrition = !!body.showNutrition
+  }
 
   try {
     const venues = await sql`
@@ -830,9 +899,10 @@ app.put('/api/dashboard/:venueId/venue', async (c) => {
         name = COALESCE(${updates.name ?? null}, name),
         address = COALESCE(${updates.address ?? null}, address),
         phone = COALESCE(${updates.phone ?? null}, phone),
-        email = COALESCE(${updates.email ?? null}, email)
+        email = COALESCE(${updates.email ?? null}, email),
+        show_nutrition = COALESCE(${updates.showNutrition ?? null}, show_nutrition)
       WHERE id = ${venueId}
-      RETURNING id, name, slug, address, phone, email
+      RETURNING id, name, slug, address, phone, email, show_nutrition
     `
     if (venues.length === 0) {
       return c.json({ error: 'Venue not found' }, 404)
