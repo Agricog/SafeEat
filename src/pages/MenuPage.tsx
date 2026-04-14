@@ -14,6 +14,19 @@ interface Dish {
   pricePence: number
   allergenMask: number
   category: string
+  isVegan: boolean
+  isVegetarian: boolean
+  isGlutenFree: boolean
+  isDairyFree: boolean
+  isHalal: boolean
+  isKosher: boolean
+  calories: number | null
+  proteinG: number | null
+  carbsG: number | null
+  fatG: number | null
+  fibreG: number | null
+  sugarG: number | null
+  saltG: number | null
 }
 
 interface Venue {
@@ -21,6 +34,7 @@ interface Venue {
   name: string
   slug: string
   address: string
+  showNutrition: boolean
 }
 
 interface MenuData {
@@ -33,22 +47,26 @@ function formatPrice(pence: number): string {
   return `£${(pence / 100).toFixed(2)}`
 }
 
+const DIETARY_FILTERS = [
+  { key: 'isVegan', label: 'Vegan', icon: '🌱' },
+  { key: 'isVegetarian', label: 'Vegetarian', icon: '🥕' },
+  { key: 'isGlutenFree', label: 'Gluten-free', icon: '🌾' },
+  { key: 'isDairyFree', label: 'Dairy-free', icon: '🥛' },
+  { key: 'isHalal', label: 'Halal', icon: '☪️' },
+  { key: 'isKosher', label: 'Kosher', icon: '✡️' },
+] as const
+
 export default function MenuPage() {
   const { venueId } = useParams<{ venueId: string }>()
 
-  // ---------------------------------------------------------------------------
-  // Fetch menu data from API
-  // ---------------------------------------------------------------------------
   const [menuData, setMenuData] = useState<MenuData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!venueId) return
-
     setLoading(true)
     setError(null)
-
     fetch(`/api/menu/${venueId}`)
       .then((res) => {
         if (!res.ok) throw new Error(res.status === 404 ? 'Venue not found' : 'Failed to load menu')
@@ -64,9 +82,6 @@ export default function MenuPage() {
       })
   }, [venueId])
 
-  // ---------------------------------------------------------------------------
-  // Profile management
-  // ---------------------------------------------------------------------------
   const venue = menuData?.venue
   const dishes = menuData?.dishes ?? []
   const verification = menuData?.verification
@@ -74,12 +89,12 @@ export default function MenuPage() {
   const { profile, saveProfile, deleteProfile } = useLocalProfile(venue?.id ?? '')
 
   const [selectedAllergens, setSelectedAllergens] = useState<string[]>([])
+  const [activeDietaryFilters, setActiveDietaryFilters] = useState<Set<string>>(new Set())
   const [showSelector, setShowSelector] = useState(false)
   const [showSavePrompt, setShowSavePrompt] = useState(false)
   const [promptDismissed, setPromptDismissed] = useState(false)
   const [savedConfirmation, setSavedConfirmation] = useState(false)
 
-  // Load profile allergens once venue data arrives
   useEffect(() => {
     if (profile) {
       setSelectedAllergens(profile.allergenIds)
@@ -87,24 +102,14 @@ export default function MenuPage() {
     }
   }, [profile])
 
-  // Show save prompt after user selects allergens and closes the selector
   const [selectorWasOpen, setSelectorWasOpen] = useState(false)
 
   useEffect(() => {
-    if (showSelector) {
-      setSelectorWasOpen(true)
-    }
+    if (showSelector) setSelectorWasOpen(true)
   }, [showSelector])
 
   useEffect(() => {
-    if (
-      selectorWasOpen &&
-      !showSelector &&
-      selectedAllergens.length > 0 &&
-      !profile &&
-      !promptDismissed &&
-      !savedConfirmation
-    ) {
+    if (selectorWasOpen && !showSelector && selectedAllergens.length > 0 && !profile && !promptDismissed && !savedConfirmation) {
       setShowSavePrompt(true)
       setSelectorWasOpen(false)
     }
@@ -130,27 +135,46 @@ export default function MenuPage() {
     setSavedConfirmation(false)
   }
 
-  // ---------------------------------------------------------------------------
-  // Allergen filtering
-  // ---------------------------------------------------------------------------
+  const handleDietaryToggle = (key: string) => {
+    setActiveDietaryFilters((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // Check if any dishes have dietary flags set (to decide whether to show the filter bar)
+  const hasDietaryData = useMemo(() =>
+    dishes.some((d) => d.isVegan || d.isVegetarian || d.isGlutenFree || d.isDairyFree || d.isHalal || d.isKosher),
+    [dishes]
+  )
+
   const customerMask = buildMaskFromIds(selectedAllergens)
 
   const categorised = useMemo(() => {
-    const cats: Record<string, (Dish & { safe: boolean })[]> = {}
+    const cats: Record<string, (Dish & { safe: boolean; dietaryMatch: boolean })[]> = {}
     for (const dish of dishes) {
       const safe = isDishSafe(dish.allergenMask, customerMask)
+
+      // Check dietary filters
+      let dietaryMatch = true
+      for (const key of activeDietaryFilters) {
+        if (!dish[key as keyof Dish]) {
+          dietaryMatch = false
+          break
+        }
+      }
+
       if (!cats[dish.category]) cats[dish.category] = []
-      cats[dish.category].push({ ...dish, safe })
+      cats[dish.category].push({ ...dish, safe, dietaryMatch })
     }
     return cats
-  }, [dishes, customerMask])
+  }, [dishes, customerMask, activeDietaryFilters])
 
-  // Derive category order from actual data
   const categoryOrder = ['Starters', 'Mains', 'Desserts', 'Sides', 'Drinks']
+  const hasActiveFilters = customerMask > 0 || activeDietaryFilters.size > 0
 
-  // ---------------------------------------------------------------------------
-  // Loading state
-  // ---------------------------------------------------------------------------
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -162,9 +186,6 @@ export default function MenuPage() {
     )
   }
 
-  // ---------------------------------------------------------------------------
-  // Error state
-  // ---------------------------------------------------------------------------
   if (error || !venue) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -183,9 +204,6 @@ export default function MenuPage() {
     )
   }
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
@@ -230,22 +248,44 @@ export default function MenuPage() {
               />
             </div>
           )}
+
+          {/* Dietary filter bar */}
+          {hasDietaryData && (
+            <div className="mt-3 flex flex-wrap gap-1.5 pb-1">
+              {DIETARY_FILTERS.map((f) => {
+                // Only show filter if at least one dish has this flag
+                const hasFlag = dishes.some((d) => d[f.key as keyof Dish])
+                if (!hasFlag) return null
+                const active = activeDietaryFilters.has(f.key)
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => handleDietaryToggle(f.key)}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      active
+                        ? 'bg-se-green-50 border-se-green-300 text-se-green-800'
+                        : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    <span>{f.icon}</span>
+                    <span>{f.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       </header>
 
-      {/* Saved confirmation toast */}
       {savedConfirmation && !showSavePrompt && (
         <div className="max-w-lg mx-auto">
           <div className="mx-4 mt-4 px-4 py-3 rounded-xl bg-se-green-50 border border-se-green-200 flex items-center gap-2">
             <span className="text-se-green-600">✓</span>
-            <p className="text-sm text-se-green-700 font-medium">
-              Profile saved — your menu is personalised
-            </p>
+            <p className="text-sm text-se-green-700 font-medium">Profile saved — your menu is personalised</p>
           </div>
         </div>
       )}
 
-      {/* Save profile consent prompt */}
       {showSavePrompt && (
         <div className="max-w-lg mx-auto">
           <SaveProfilePrompt
@@ -270,38 +310,68 @@ export default function MenuPage() {
               <section key={cat} className="mb-8">
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{cat}</h2>
                 <div className="space-y-3">
-                  {catDishes.map((dish) => (
-                    <div
-                      key={dish.id}
-                      className={`bg-white rounded-xl border p-4 transition-opacity ${
-                        customerMask > 0 && !dish.safe ? 'opacity-40 border-gray-100' : 'border-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-gray-900">{dish.name}</h3>
-                            {customerMask > 0 && dish.safe && (
-                              <span className="text-xs font-medium text-se-green-600 bg-se-green-50 px-1.5 py-0.5 rounded">
-                                Safe
-                              </span>
+                  {catDishes.map((dish) => {
+                    const dimmed = hasActiveFilters && (!dish.safe || !dish.dietaryMatch)
+                    return (
+                      <div
+                        key={dish.id}
+                        className={`bg-white rounded-xl border p-4 transition-opacity ${
+                          dimmed ? 'opacity-40 border-gray-100' : 'border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold text-gray-900">{dish.name}</h3>
+                              {hasActiveFilters && dish.safe && dish.dietaryMatch && (
+                                <span className="text-xs font-medium text-se-green-600 bg-se-green-50 px-1.5 py-0.5 rounded">
+                                  Safe
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500 mt-0.5">{dish.description}</p>
+
+                            {/* Dietary badges */}
+                            {(dish.isVegan || dish.isVegetarian || dish.isGlutenFree || dish.isDairyFree || dish.isHalal || dish.isKosher) && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {dish.isVegan && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">🌱 Vegan</span>}
+                                {dish.isVegetarian && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium">🥕 Vegetarian</span>}
+                                {dish.isGlutenFree && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">🌾 GF</span>}
+                                {dish.isDairyFree && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">🥛 DF</span>}
+                                {dish.isHalal && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-medium">☪️ Halal</span>}
+                                {dish.isKosher && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-medium">✡️ Kosher</span>}
+                              </div>
+                            )}
+
+                            {/* Allergen badges */}
+                            {dish.allergenMask > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {getIdsFromMask(dish.allergenMask).map((aid) => (
+                                  <AllergenBadge key={aid} allergenId={aid} />
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Nutrition (only if venue has toggled it on and dish has data) */}
+                            {venue.showNutrition && dish.calories != null && (
+                              <div className="mt-2 text-xs text-gray-400">
+                                <span className="font-medium text-gray-500">{dish.calories} kcal</span>
+                                {dish.proteinG != null && <span> · {dish.proteinG}g protein</span>}
+                                {dish.carbsG != null && <span> · {dish.carbsG}g carbs</span>}
+                                {dish.fatG != null && <span> · {dish.fatG}g fat</span>}
+                                {dish.fibreG != null && <span> · {dish.fibreG}g fibre</span>}
+                                {dish.sugarG != null && <span> · {dish.sugarG}g sugar</span>}
+                                {dish.saltG != null && <span> · {dish.saltG}g salt</span>}
+                              </div>
                             )}
                           </div>
-                          <p className="text-sm text-gray-500 mt-0.5">{dish.description}</p>
-                          {dish.allergenMask > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {getIdsFromMask(dish.allergenMask).map((aid) => (
-                                <AllergenBadge key={aid} allergenId={aid} />
-                              ))}
-                            </div>
-                          )}
+                          <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                            {formatPrice(dish.pricePence)}
+                          </span>
                         </div>
-                        <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-                          {formatPrice(dish.pricePence)}
-                        </span>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </section>
             )
