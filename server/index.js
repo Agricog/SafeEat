@@ -30,6 +30,7 @@ import {
   sendWeeklyInsight,
   sendCustomerNotification,
 } from './email.js'
+import { generateEhoReport } from './ehoReport.js'
 // ---------------------------------------------------------------------------
 // Sentry initialisation (must be before app creation)
 // ---------------------------------------------------------------------------
@@ -986,6 +987,39 @@ app.get('/api/dashboard/:venueId/notifications', async (c) => {
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/notifications', venueId } })
     console.error('Notification history error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
+// DASHBOARD: Generate EHO inspection report PDF
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/:venueId/eho-report', async (c) => {
+  const venueId = c.get('venueId')
+  try {
+    const [venues, dishes, verifications] = await Promise.all([
+      sql`SELECT id, name, slug, address, phone, email FROM venues WHERE id = ${venueId} LIMIT 1`,
+      sql`SELECT id, name, description, price_pence, category, allergen_mask, ingredients,
+        is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
+        active, sort_order
+        FROM dishes WHERE venue_id = ${venueId} ORDER BY sort_order, created_at`,
+      sql`SELECT id, type, note, verified_at FROM verification_log
+        WHERE venue_id = ${venueId} ORDER BY verified_at DESC LIMIT 50`,
+    ])
+    if (venues.length === 0) return c.json({ error: 'Venue not found' }, 404)
+    const pdfBytes = await generateEhoReport({
+      venue: venues[0],
+      dishes,
+      verifications,
+    })
+    return new Response(pdfBytes, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="SafeEat-EHO-Report-${new Date().toISOString().slice(0, 10)}.pdf"`,
+      },
+    })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/eho-report', venueId } })
+    console.error('EHO report error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
