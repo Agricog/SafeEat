@@ -33,7 +33,7 @@ export async function generateEhoReport({ venue, dishes, verifications }) {
 
   // Header bar
   page.drawRectangle({ x: 0, y: pageHeight - 60, width: pageWidth, height: 60, color: GREEN })
-  page.drawText('SafeEat — Allergen Compliance Report', {
+  page.drawText('SafeEat - Allergen Compliance Report', {
     x: margin, y: pageHeight - 40, size: 18, font: fontBold, color: WHITE,
   })
   page.drawText('EHO Inspection Ready', {
@@ -120,10 +120,10 @@ export async function generateEhoReport({ venue, dishes, verifications }) {
       // Dish name (truncate if too long)
       let dishName = dish.name || 'Unnamed'
       if (fontRegular.widthOfTextAtSize(dishName, 7.5) > dishColWidth - 8) {
-        while (fontRegular.widthOfTextAtSize(dishName + '…', 7.5) > dishColWidth - 8 && dishName.length > 0) {
+        while (fontRegular.widthOfTextAtSize(dishName + '...', 7.5) > dishColWidth - 8 && dishName.length > 0) {
           dishName = dishName.slice(0, -1)
         }
-        dishName += '…'
+        dishName += '...'
       }
       page.drawText(dishName, { x: margin + 4, y: rowY + 4, size: 7.5, font: fontRegular, color: DARK })
 
@@ -132,9 +132,8 @@ export async function generateEhoReport({ venue, dishes, verifications }) {
       for (let i = 0; i < 14; i++) {
         const colX = margin + dishColWidth + i * allergenColWidth
         if (mask & (1 << i)) {
-          // Draw a green dot for contains
-          page.drawCircle({ x: colX + allergenColWidth / 2, y: rowY + rowHeight / 2, size: 4, color: GREEN })
-          page.drawText('✓', { x: colX + allergenColWidth / 2 - 3, y: rowY + 3.5, size: 7, font: fontBold, color: WHITE })
+          // Draw a green filled circle for contains
+          page.drawCircle({ x: colX + allergenColWidth / 2, y: rowY + rowHeight / 2, size: 5, color: GREEN })
         }
       }
 
@@ -271,13 +270,13 @@ export async function generateEhoReport({ venue, dishes, verifications }) {
       page.drawText(typeLabel, { x: margin + 200, y: y - 11, size: 7.5, font: fontBold, color: v.type === 'confirmed' ? GREEN : v.type === 'updated' ? rgb(0.851, 0.467, 0.024) : rgb(0.863, 0.106, 0.106) })
 
       // Truncate note
-      let noteText = v.note || '—'
+      let noteText = v.note || '-'
       const maxNoteWidth = contentWidth - 310
       if (fontRegular.widthOfTextAtSize(noteText, 7.5) > maxNoteWidth) {
-        while (fontRegular.widthOfTextAtSize(noteText + '…', 7.5) > maxNoteWidth && noteText.length > 0) {
+        while (fontRegular.widthOfTextAtSize(noteText + '...', 7.5) > maxNoteWidth && noteText.length > 0) {
           noteText = noteText.slice(0, -1)
         }
-        noteText += '…'
+        noteText += '...'
       }
       page.drawText(noteText, { x: margin + 300, y: y - 11, size: 7.5, font: fontRegular, color: GREY })
       y -= 14
