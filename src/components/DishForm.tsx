@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import AllergenSelector from '../components/AllergenSelector'
 import { getIdsFromMask, buildMaskFromIds } from '../lib/allergens'
+import { detectAllergens } from '../lib/ingredientAllergens'
 
 export interface DishFormData {
   name: string
@@ -8,6 +9,7 @@ export interface DishFormData {
   pricePounds: string
   category: string
   allergenIds: string[]
+  ingredients: string
 }
 
 interface DishFormProps {
@@ -25,11 +27,62 @@ const EMPTY: DishFormData = {
   pricePounds: '',
   category: 'Mains',
   allergenIds: [],
+  ingredients: '',
 }
 
 export default function DishForm({ initial, onSubmit, onCancel, submitLabel = 'Add dish' }: DishFormProps) {
   const [form, setForm] = useState<DishFormData>(initial ?? EMPTY)
   const [errors, setErrors] = useState<Partial<Record<keyof DishFormData, string>>>({})
+  const [detectedMatches, setDetectedMatches] = useState<
+    { keyword: string; displayName: string; allergenIds: readonly string[] }[]
+  >([])
+  const [manualOverrides, setManualOverrides] = useState<Set<string>>(new Set())
+
+  // Auto-detect allergens when ingredients change
+  const runDetection = useCallback((ingredientsText: string, currentAllergenIds: string[]) => {
+    const { allergenIds: detected, matches } = detectAllergens(ingredientsText)
+    setDetectedMatches(matches)
+
+    // Merge detected allergens with any manual overrides
+    // Keep manually added allergens that aren't from detection
+    const manuallyAdded = currentAllergenIds.filter((id) => manualOverrides.has(id))
+    const merged = Array.from(new Set([...detected, ...manuallyAdded]))
+
+    return merged
+  }, [manualOverrides])
+
+  // Run detection when ingredients text changes (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (form.ingredients.trim()) {
+        const merged = runDetection(form.ingredients, form.allergenIds)
+        setForm((prev) => ({ ...prev, allergenIds: merged }))
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.ingredients])
+
+  const handleAllergenChange = (ids: string[]) => {
+    // Track which allergens were manually toggled
+    const { allergenIds: autoDetected } = detectAllergens(form.ingredients)
+    const newManual = new Set(manualOverrides)
+
+    for (const id of ids) {
+      if (!autoDetected.includes(id)) {
+        newManual.add(id)
+      }
+    }
+    // Remove manual overrides for allergens that were unticked
+    for (const id of manualOverrides) {
+      if (!ids.includes(id)) {
+        newManual.delete(id)
+      }
+    }
+
+    setManualOverrides(newManual)
+    setForm({ ...form, allergenIds: ids })
+  }
 
   const validate = (): boolean => {
     const errs: typeof errors = {}
@@ -107,14 +160,55 @@ export default function DishForm({ initial, onSubmit, onCancel, submitLabel = 'A
         </div>
       </div>
 
+      {/* Ingredients */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Ingredients
+          <span className="text-xs text-gray-400 font-normal ml-2">Allergens auto-detected as you type</span>
+        </label>
+        <textarea
+          value={form.ingredients}
+          onChange={(e) => setForm({ ...form, ingredients: e.target.value })}
+          placeholder="e.g. wheat flour, butter, eggs, mozzarella, tomato, basil, olive oil, salt"
+          rows={3}
+          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent resize-none"
+        />
+
+        {/* Auto-detection results */}
+        {detectedMatches.length > 0 && (
+          <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="text-xs font-semibold text-amber-800 mb-2">
+              Auto-detected allergens from ingredients
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {detectedMatches.map((match, i) => (
+                <span
+                  key={`${match.keyword}-${i}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs"
+                >
+                  <span className="font-medium">{match.displayName}</span>
+                  <span className="text-amber-500">→</span>
+                  <span>{match.allergenIds.join(', ')}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {form.ingredients.trim() && detectedMatches.length === 0 && (
+          <p className="text-xs text-gray-400 mt-1">No allergens detected — check ingredients are separated by commas</p>
+        )}
+      </div>
+
       {/* Allergens */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
           Allergens in this dish
+          <span className="text-xs text-gray-400 font-normal ml-2">Auto-ticked from ingredients — adjust if needed</span>
         </label>
         <AllergenSelector
           selected={form.allergenIds}
-          onChange={(ids) => setForm({ ...form, allergenIds: ids })}
+          onChange={handleAllergenChange}
           compact
         />
         {form.allergenIds.length === 0 && (
