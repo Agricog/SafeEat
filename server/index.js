@@ -27,6 +27,7 @@ import {
   sendContactNotification,
   sendWelcomeEmail,
   sendVerificationReminder,
+  sendWeeklyInsight,
 } from './email.js'
 
 // ---------------------------------------------------------------------------
@@ -248,6 +249,120 @@ app.post('/api/cron/verification-reminders', async (c) => {
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'POST /api/cron/verification-reminders' } })
     console.error('Verification reminder cron error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// ===========================================================================
+// CRON: Weekly insight emails (Monday mornings)
+// Trigger weekly via external cron service (e.g. cron-job.org).
+// Protected by CRON_SECRET to prevent abuse.
+// ===========================================================================
+const ALLERGEN_BITS = [
+  'celery', 'gluten', 'crustaceans', 'eggs', 'fish', 'lupin', 'milk',
+  'molluscs', 'mustard', 'tree_nuts', 'peanuts', 'sesame', 'soybeans', 'sulphites',
+]
+
+app.post('/api/cron/weekly-insights', async (c) => {
+  const cronSecret = process.env.CRON_SECRET
+  const authHeader = c.req.header('Authorization')
+
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString()
+
+    // Get all active venues with email
+    const activeVenues = await sql`
+      SELECT id, name, email
+      FROM venues
+      WHERE subscription_status IN ('active', 'trialing', 'trial')
+        AND email IS NOT NULL
+        AND email != ''
+    `
+
+    let sent = 0
+    for (const venue of activeVenues) {
+      try {
+        // Gather stats in parallel
+        const [
+          scansThisWeekResult,
+          scansPrevWeekResult,
+          newProfilesResult,
+          totalProfilesResult,
+          newOptInsResult,
+          totalOptInsResult,
+          allergenMasksResult,
+          totalDishesResult,
+          lastVerifiedResult,
+        ] = await Promise.all([
+          sql`SELECT COUNT(*)::int as count FROM menu_scans WHERE venue_id = ${venue.id} AND scanned_at > ${sevenDaysAgo}`,
+          sql`SELECT COUNT(*)::int as count FROM menu_scans WHERE venue_id = ${venue.id} AND scanned_at > ${fourteenDaysAgo} AND scanned_at <= ${sevenDaysAgo}`,
+          sql`SELECT COUNT(*)::int as count FROM customer_profiles WHERE venue_id = ${venue.id} AND created_at > ${sevenDaysAgo}`,
+          sql`SELECT COUNT(*)::int as count FROM customer_profiles WHERE venue_id = ${venue.id}`,
+          sql`SELECT COUNT(*)::int as count FROM customer_profiles WHERE venue_id = ${venue.id} AND marketing_consent = true AND marketing_consent_at > ${sevenDaysAgo}`,
+          sql`SELECT COUNT(*)::int as count FROM customer_profiles WHERE venue_id = ${venue.id} AND marketing_consent = true`,
+          sql`SELECT allergen_mask FROM customer_profiles WHERE venue_id = ${venue.id} AND allergen_mask > 0`,
+          sql`SELECT COUNT(*)::int as count FROM dishes WHERE venue_id = ${venue.id} AND active = true`,
+          sql`SELECT verified_at FROM verification_log WHERE venue_id = ${venue.id} AND type != 'missed' ORDER BY verified_at DESC LIMIT 1`,
+        ])
+
+        // Calculate top allergens from bitmasks
+        const allergenCounts = {}
+        const totalWithAllergens = allergenMasksResult.length
+        for (const row of allergenMasksResult) {
+          const mask = row.allergen_mask
+          for (let i = 0; i < ALLERGEN_BITS.length; i++) {
+            if (mask & (1 << i)) {
+              allergenCounts[ALLERGEN_BITS[i]] = (allergenCounts[ALLERGEN_BITS[i]] || 0) + 1
+            }
+          }
+        }
+        const topAllergens = Object.entries(allergenCounts)
+          .map(([allergen, count]) => ({
+            allergen,
+            count,
+            percentage: totalWithAllergens > 0 ? Math.round((count / totalWithAllergens) * 100) : 0,
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5)
+
+        // Days since last verification
+        let lastVerifiedDaysAgo = null
+        if (lastVerifiedResult.length > 0) {
+          const lastDate = new Date(lastVerifiedResult[0].verified_at)
+          lastVerifiedDaysAgo = Math.floor((Date.now() - lastDate.getTime()) / 86400000)
+        }
+
+        await sendWeeklyInsight({
+          venueEmail: venue.email,
+          venueName: venue.name,
+          stats: {
+            scansThisWeek: scansThisWeekResult[0].count,
+            scansPreviousWeek: scansPrevWeekResult[0].count,
+            newProfiles: newProfilesResult[0].count,
+            totalProfiles: totalProfilesResult[0].count,
+            newOptIns: newOptInsResult[0].count,
+            totalOptIns: totalOptInsResult[0].count,
+            topAllergens,
+            totalDishes: totalDishesResult[0].count,
+            lastVerifiedDaysAgo,
+          },
+        })
+        sent++
+      } catch (venueErr) {
+        console.error(`Weekly insight error for venue ${venue.id}:`, venueErr)
+      }
+    }
+
+    console.log(`Weekly insights: ${sent} sent out of ${activeVenues.length} active venues`)
+    return c.json({ sent, total: activeVenues.length })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/cron/weekly-insights' } })
+    console.error('Weekly insight cron error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
