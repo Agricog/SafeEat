@@ -10,6 +10,9 @@ interface VenueDetails {
   phone: string
   email: string
   showNutrition: boolean
+  googleReviewUrl: string
+  tripadvisorUrl: string
+  showReviewPrompt: boolean
 }
 
 interface SubscriptionInfo {
@@ -36,16 +39,22 @@ export default function DashboardSettings() {
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState<VenueDetails>({ name: '', address: '', phone: '', email: '', showNutrition: false })
+  const [draft, setDraft] = useState<VenueDetails>({
+    name: '', address: '', phone: '', email: '', showNutrition: false,
+    googleReviewUrl: '', tripadvisorUrl: '', showReviewPrompt: false,
+  })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [billingLoading, setBillingLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [nutritionSaving, setNutritionSaving] = useState(false)
+  const [reviewSaving, setReviewSaving] = useState(false)
+  const [reviewEditing, setReviewEditing] = useState(false)
+  const [reviewDraft, setReviewDraft] = useState({ googleReviewUrl: '', tripadvisorUrl: '' })
 
   const menuUrl = `${window.location.origin}/menu/${venueSlug}`
-
   const billingResult = searchParams.get('billing')
+
   useEffect(() => {
     if (billingResult) {
       setSearchParams({}, { replace: true })
@@ -55,12 +64,8 @@ export default function DashboardSettings() {
   useEffect(() => {
     let cancelled = false
     Promise.all([
-      request<{ venue: { name: string; address: string; phone: string; email: string; show_nutrition: boolean } }>(
-        `/api/dashboard/${venueId}/venue`
-      ),
-      request<SubscriptionInfo>(
-        `/api/dashboard/${venueId}/subscription`
-      ),
+      request<{ venue: any }>(`/api/dashboard/${venueId}/venue`),
+      request<SubscriptionInfo>(`/api/dashboard/${venueId}/subscription`),
     ])
       .then(([venueData, subData]) => {
         if (cancelled) return
@@ -70,9 +75,13 @@ export default function DashboardSettings() {
           phone: venueData.venue.phone || '',
           email: venueData.venue.email || '',
           showNutrition: venueData.venue.show_nutrition || false,
+          googleReviewUrl: venueData.venue.google_review_url || '',
+          tripadvisorUrl: venueData.venue.tripadvisor_url || '',
+          showReviewPrompt: venueData.venue.show_review_prompt || false,
         }
         setVenue(v)
         setDraft(v)
+        setReviewDraft({ googleReviewUrl: v.googleReviewUrl, tripadvisorUrl: v.tripadvisorUrl })
         setSubscription(subData)
       })
       .catch((err) => { if (!cancelled) setError(err.message) })
@@ -84,16 +93,16 @@ export default function DashboardSettings() {
     setSaving(true)
     setError(null)
     try {
-      const res = await request<{ venue: { name: string; address: string; phone: string; email: string; show_nutrition: boolean } }>(
+      const res = await request<{ venue: any }>(
         `/api/dashboard/${venueId}/venue`,
         { method: 'PUT', body: { name: draft.name, address: draft.address, phone: draft.phone, email: draft.email } }
       )
       const v: VenueDetails = {
+        ...venue!,
         name: res.venue.name || '',
         address: res.venue.address || '',
         phone: res.venue.phone || '',
         email: res.venue.email || '',
-        showNutrition: res.venue.show_nutrition || false,
       }
       setVenue(v)
       setDraft(v)
@@ -113,16 +122,48 @@ export default function DashboardSettings() {
     setNutritionSaving(true)
     setError(null)
     try {
-      await request(
-        `/api/dashboard/${venueId}/venue`,
-        { method: 'PUT', body: { showNutrition: newValue } }
-      )
+      await request(`/api/dashboard/${venueId}/venue`, { method: 'PUT', body: { showNutrition: newValue } })
       setVenue({ ...venue, showNutrition: newValue })
       setDraft((prev) => ({ ...prev, showNutrition: newValue }))
     } catch (err: any) {
       setError(err.message)
     } finally {
       setNutritionSaving(false)
+    }
+  }
+
+  const handleReviewToggle = async () => {
+    if (!venue) return
+    const newValue = !venue.showReviewPrompt
+    setReviewSaving(true)
+    setError(null)
+    try {
+      await request(`/api/dashboard/${venueId}/venue`, { method: 'PUT', body: { showReviewPrompt: newValue } })
+      setVenue({ ...venue, showReviewPrompt: newValue })
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setReviewSaving(false)
+    }
+  }
+
+  const handleReviewUrlsSave = async () => {
+    if (!venue) return
+    setReviewSaving(true)
+    setError(null)
+    try {
+      await request(`/api/dashboard/${venueId}/venue`, {
+        method: 'PUT',
+        body: { googleReviewUrl: reviewDraft.googleReviewUrl, tripadvisorUrl: reviewDraft.tripadvisorUrl },
+      })
+      setVenue({ ...venue, googleReviewUrl: reviewDraft.googleReviewUrl, tripadvisorUrl: reviewDraft.tripadvisorUrl })
+      setReviewEditing(false)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setReviewSaving(false)
     }
   }
 
@@ -135,10 +176,7 @@ export default function DashboardSettings() {
     setBillingLoading(true)
     setError(null)
     try {
-      const res = await request<{ url: string }>(
-        `/api/dashboard/${venueId}/billing/checkout`,
-        { method: 'POST' }
-      )
+      const res = await request<{ url: string }>(`/api/dashboard/${venueId}/billing/checkout`, { method: 'POST' })
       window.location.href = res.url
     } catch (err: any) {
       setError(err.message)
@@ -150,10 +188,7 @@ export default function DashboardSettings() {
     setBillingLoading(true)
     setError(null)
     try {
-      const res = await request<{ url: string }>(
-        `/api/dashboard/${venueId}/billing/portal`,
-        { method: 'POST' }
-      )
+      const res = await request<{ url: string }>(`/api/dashboard/${venueId}/billing/portal`, { method: 'POST' })
       window.location.href = res.url
     } catch (err: any) {
       setError(err.message)
@@ -177,21 +212,17 @@ export default function DashboardSettings() {
       <h2 className="text-xl font-bold text-gray-900 mb-6">Settings</h2>
 
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
-          {error}
-        </div>
+        <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
       )}
-
       {billingResult === 'success' && (
         <div className="mb-4 px-4 py-3 rounded-xl bg-se-green-50 border border-se-green-200 flex items-center gap-2">
-          <span className="text-se-green-600">✓</span>
+          <span className="text-se-green-600">&#10003;</span>
           <p className="text-sm text-se-green-700 font-medium">Subscription activated! Welcome to SafeEat.</p>
         </div>
       )}
-
       {saved && (
         <div className="mb-4 px-4 py-3 rounded-xl bg-se-green-50 border border-se-green-200 flex items-center gap-2">
-          <span className="text-se-green-600">✓</span>
+          <span className="text-se-green-600">&#10003;</span>
           <p className="text-sm text-se-green-700 font-medium">Settings saved</p>
         </div>
       )}
@@ -227,7 +258,7 @@ export default function DashboardSettings() {
                 <div className="flex gap-2 pt-2">
                   <button onClick={handleSave} disabled={saving}
                     className="flex-1 px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors disabled:opacity-50">
-                    {saving ? 'Saving…' : 'Save'}
+                    {saving ? 'Saving...' : 'Save'}
                   </button>
                   <button onClick={handleCancel}
                     className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition-colors">
@@ -238,22 +269,10 @@ export default function DashboardSettings() {
             ) : (
               <div>
                 <div className="space-y-2 mb-4">
-                  <div>
-                    <p className="text-xs text-gray-400">Venue name</p>
-                    <p className="text-sm font-medium text-gray-900">{venue?.name || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400">Address</p>
-                    <p className="text-sm text-gray-700">{venue?.address || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400">Phone</p>
-                    <p className="text-sm text-gray-700">{venue?.phone || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400">Email</p>
-                    <p className="text-sm text-gray-700">{venue?.email || '—'}</p>
-                  </div>
+                  <div><p className="text-xs text-gray-400">Venue name</p><p className="text-sm font-medium text-gray-900">{venue?.name || '-'}</p></div>
+                  <div><p className="text-xs text-gray-400">Address</p><p className="text-sm text-gray-700">{venue?.address || '-'}</p></div>
+                  <div><p className="text-xs text-gray-400">Phone</p><p className="text-sm text-gray-700">{venue?.phone || '-'}</p></div>
+                  <div><p className="text-xs text-gray-400">Email</p><p className="text-sm text-gray-700">{venue?.email || '-'}</p></div>
                 </div>
                 <button onClick={() => setEditing(true)}
                   className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors">
@@ -274,22 +293,89 @@ export default function DashboardSettings() {
                   Only shown for dishes where you've entered nutrition data.
                 </p>
               </div>
-              <button
-                onClick={handleNutritionToggle}
-                disabled={nutritionSaving}
+              <button onClick={handleNutritionToggle} disabled={nutritionSaving}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ml-4 ${
                   venue?.showNutrition ? 'bg-se-green-600' : 'bg-gray-300'
                 } ${nutritionSaving ? 'opacity-50' : ''}`}
-                role="switch"
-                aria-checked={venue?.showNutrition}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    venue?.showNutrition ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
+                role="switch" aria-checked={venue?.showNutrition}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  venue?.showNutrition ? 'translate-x-6' : 'translate-x-1'
+                }`} />
               </button>
             </div>
+          </div>
+
+          {/* Review prompt settings */}
+          <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Customer reviews</h3>
+          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Show review prompt</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  After a customer saves their allergen profile, prompt them to leave a Google or TripAdvisor review.
+                </p>
+              </div>
+              <button onClick={handleReviewToggle} disabled={reviewSaving}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ml-4 ${
+                  venue?.showReviewPrompt ? 'bg-se-green-600' : 'bg-gray-300'
+                } ${reviewSaving ? 'opacity-50' : ''}`}
+                role="switch" aria-checked={venue?.showReviewPrompt}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  venue?.showReviewPrompt ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+
+            {reviewEditing ? (
+              <div className="space-y-3 pt-2 border-t border-gray-100">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Google Review URL</label>
+                  <input type="url" value={reviewDraft.googleReviewUrl}
+                    onChange={(e) => setReviewDraft({ ...reviewDraft, googleReviewUrl: e.target.value })}
+                    placeholder="https://g.page/r/your-venue/review"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent" />
+                  <p className="text-xs text-gray-400 mt-1">Find this in Google Business Profile &gt; Get more reviews</p>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">TripAdvisor URL</label>
+                  <input type="url" value={reviewDraft.tripadvisorUrl}
+                    onChange={(e) => setReviewDraft({ ...reviewDraft, tripadvisorUrl: e.target.value })}
+                    placeholder="https://www.tripadvisor.co.uk/Restaurant_Review-..."
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent" />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleReviewUrlsSave} disabled={reviewSaving}
+                    className="flex-1 px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors disabled:opacity-50">
+                    {reviewSaving ? 'Saving...' : 'Save URLs'}
+                  </button>
+                  <button onClick={() => { setReviewEditing(false); setReviewDraft({ googleReviewUrl: venue?.googleReviewUrl || '', tripadvisorUrl: venue?.tripadvisorUrl || '' }) }}
+                    className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="pt-2 border-t border-gray-100">
+                <div className="space-y-1.5 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${venue?.googleReviewUrl ? 'bg-se-green-500' : 'bg-gray-300'}`} />
+                    <span className="text-xs text-gray-600">
+                      Google: {venue?.googleReviewUrl ? 'configured' : 'not set'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${venue?.tripadvisorUrl ? 'bg-se-green-500' : 'bg-gray-300'}`} />
+                    <span className="text-xs text-gray-600">
+                      TripAdvisor: {venue?.tripadvisorUrl ? 'configured' : 'not set'}
+                    </span>
+                  </div>
+                </div>
+                <button onClick={() => setReviewEditing(true)}
+                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors">
+                  Edit review URLs
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Subscription */}
@@ -298,32 +384,35 @@ export default function DashboardSettings() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-sm font-semibold text-gray-900">SafeEat Starter</p>
-                <p className="text-xs text-gray-500">£29.99/month</p>
+                <p className="text-xs text-gray-500">29.99/month</p>
               </div>
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${subStatus.colour}`}>
                 {subStatus.label}
               </span>
             </div>
             <div className="text-xs text-gray-500 space-y-1 mb-4">
-              <p>✓ Unlimited menu items</p>
-              <p>✓ Customer allergen profiles</p>
-              <p>✓ Weekly verification & audit trail</p>
-              <p>✓ QR code for your menu</p>
-              <p>✓ Push notifications to opted-in customers</p>
-              <p>✓ Dietary preference filters</p>
-              <p>✓ Calorie & nutrition display</p>
-              <p>✓ Ingredient auto-detection</p>
+              <p>Unlimited menu items</p>
+              <p>Customer allergen profiles</p>
+              <p>Weekly verification & audit trail</p>
+              <p>QR code for your menu</p>
+              <p>Push notifications to opted-in customers</p>
+              <p>Dietary preference filters</p>
+              <p>Calorie & nutrition display</p>
+              <p>Ingredient auto-detection</p>
+              <p>EHO inspection report PDF</p>
+              <p>Menu scan analytics</p>
+              <p>Customer review prompts</p>
             </div>
             <div className="flex gap-2">
               {!hasSubscription ? (
                 <button onClick={handleSubscribe} disabled={billingLoading}
                   className="px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors disabled:opacity-50">
-                  {billingLoading ? 'Redirecting…' : 'Subscribe now'}
+                  {billingLoading ? 'Redirecting...' : 'Subscribe now'}
                 </button>
               ) : (
                 <button onClick={handleManageBilling} disabled={billingLoading}
                   className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium hover:bg-gray-200 transition-colors disabled:opacity-50">
-                  {billingLoading ? 'Loading…' : 'Manage billing'}
+                  {billingLoading ? 'Loading...' : 'Manage billing'}
                 </button>
               )}
             </div>
@@ -358,20 +447,16 @@ export default function DashboardSettings() {
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="space-y-3 text-sm text-gray-600">
               <div className="flex items-start gap-2">
-                <span className="text-base">🪟</span>
-                <p><span className="font-medium text-gray-900">Front window</span> — catches allergy-aware customers walking past</p>
+                <p><span className="font-medium text-gray-900">Front window</span> - catches allergy-aware customers walking past</p>
               </div>
               <div className="flex items-start gap-2">
-                <span className="text-base">📋</span>
-                <p><span className="font-medium text-gray-900">On each table</span> — table tent or sticker, scan before ordering</p>
+                <p><span className="font-medium text-gray-900">On each table</span> - table tent or sticker, scan before ordering</p>
               </div>
               <div className="flex items-start gap-2">
-                <span className="text-base">🧾</span>
-                <p><span className="font-medium text-gray-900">Paper menus</span> — print the QR at the bottom of your existing menu</p>
+                <p><span className="font-medium text-gray-900">Paper menus</span> - print the QR at the bottom of your existing menu</p>
               </div>
               <div className="flex items-start gap-2">
-                <span className="text-base">💬</span>
-                <p><span className="font-medium text-gray-900">Social media</span> — share the link in your bio or stories</p>
+                <p><span className="font-medium text-gray-900">Social media</span> - share the link in your bio or stories</p>
               </div>
             </div>
           </div>
