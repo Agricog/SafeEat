@@ -28,8 +28,8 @@ import {
   sendWelcomeEmail,
   sendVerificationReminder,
   sendWeeklyInsight,
+  sendCustomerNotification,
 } from './email.js'
-
 // ---------------------------------------------------------------------------
 // Sentry initialisation (must be before app creation)
 // ---------------------------------------------------------------------------
@@ -47,9 +47,7 @@ Sentry.init({
     return event
   },
 })
-
 const app = new Hono()
-
 // ---------------------------------------------------------------------------
 // Global error handler — catches unhandled errors and sends to Sentry
 // ---------------------------------------------------------------------------
@@ -64,7 +62,6 @@ app.onError((err, c) => {
   console.error('Unhandled error:', err)
   return c.json({ error: 'Internal server error' }, 500)
 })
-
 // ---------------------------------------------------------------------------
 // Global middleware
 // ---------------------------------------------------------------------------
@@ -76,7 +73,6 @@ app.use('/api/*', cors({
   allowHeaders: ['Content-Type', 'Authorization', 'Stripe-Signature'],
   credentials: true,
 }))
-
 // ---------------------------------------------------------------------------
 // Health check (public, no rate limit)
 // ---------------------------------------------------------------------------
@@ -88,7 +84,6 @@ app.get('/api/health', async (c) => {
     return c.json({ status: 'error', db: 'disconnected' }, 500)
   }
 })
-
 // ===========================================================================
 // STRIPE WEBHOOK (public, no auth, raw body — must be before auth middleware)
 // ===========================================================================
@@ -98,32 +93,27 @@ app.post('/api/webhooks/stripe', async (c) => {
     console.error('STRIPE_WEBHOOK_SECRET not set')
     return c.json({ error: 'Webhook not configured' }, 500)
   }
-
   const sigHeader = c.req.header('Stripe-Signature')
   if (!sigHeader) {
     return c.json({ error: 'Missing signature' }, 400)
   }
-
   let rawBody
   try {
     rawBody = await c.req.text()
   } catch {
     return c.json({ error: 'Invalid body' }, 400)
   }
-
   const valid = await verifyWebhookSignature(rawBody, sigHeader, webhookSecret)
   if (!valid) {
     console.error('Stripe webhook signature verification failed')
     return c.json({ error: 'Invalid signature' }, 400)
   }
-
   let event
   try {
     event = JSON.parse(rawBody)
   } catch {
     return c.json({ error: 'Invalid JSON' }, 400)
   }
-
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -131,7 +121,6 @@ app.post('/api/webhooks/stripe', async (c) => {
         const venueId = session.metadata?.venue_id
         const subscriptionId = session.subscription
         const customerId = session.customer
-
         if (venueId && subscriptionId) {
           await sql`
             UPDATE venues
@@ -141,7 +130,6 @@ app.post('/api/webhooks/stripe', async (c) => {
             WHERE id = ${venueId}
           `
           console.log(`Subscription activated for venue ${venueId}`)
-
           const venues = await sql`SELECT name, email FROM venues WHERE id = ${venueId} LIMIT 1`
           if (venues.length > 0 && venues[0].email) {
             sendWelcomeEmail({ venueEmail: venues[0].email, venueName: venues[0].name })
@@ -150,12 +138,10 @@ app.post('/api/webhooks/stripe', async (c) => {
         }
         break
       }
-
       case 'customer.subscription.updated': {
         const sub = event.data.object
         const venueId = sub.metadata?.venue_id
         const status = sub.status
-
         if (venueId) {
           await sql`
             UPDATE venues
@@ -166,11 +152,9 @@ app.post('/api/webhooks/stripe', async (c) => {
         }
         break
       }
-
       case 'customer.subscription.deleted': {
         const sub = event.data.object
         const venueId = sub.metadata?.venue_id
-
         if (venueId) {
           await sql`
             UPDATE venues
@@ -182,7 +166,6 @@ app.post('/api/webhooks/stripe', async (c) => {
         }
         break
       }
-
       case 'invoice.payment_failed': {
         const invoice = event.data.object
         const subId = invoice.subscription
@@ -196,7 +179,6 @@ app.post('/api/webhooks/stripe', async (c) => {
         }
         break
       }
-
       default:
         break
     }
@@ -205,21 +187,17 @@ app.post('/api/webhooks/stripe', async (c) => {
     console.error('Webhook processing error:', err)
     return c.json({ error: 'Processing error' }, 500)
   }
-
   return c.json({ received: true })
 })
-
 // ===========================================================================
 // CRON: Verification reminder emails
 // ===========================================================================
 app.post('/api/cron/verification-reminders', async (c) => {
   const cronSecret = process.env.CRON_SECRET
   const authHeader = c.req.header('Authorization')
-
   if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return c.json({ error: 'Unauthorized' }, 401)
   }
-
   try {
     const overdueVenues = await sql`
       SELECT v.id, v.name, v.email,
@@ -232,7 +210,6 @@ app.post('/api/cron/verification-reminders', async (c) => {
       GROUP BY v.id, v.name, v.email
       HAVING MAX(vl.verified_at) IS NULL OR MAX(vl.verified_at) < now() - INTERVAL '7 days'
     `
-
     let sent = 0
     for (const venue of overdueVenues) {
       const daysSince = venue.days_since || 'many'
@@ -243,7 +220,6 @@ app.post('/api/cron/verification-reminders', async (c) => {
       })
       sent++
     }
-
     console.log(`Verification reminders: ${sent} sent out of ${overdueVenues.length} overdue venues`)
     return c.json({ sent, total: overdueVenues.length })
   } catch (err) {
@@ -252,30 +228,22 @@ app.post('/api/cron/verification-reminders', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ===========================================================================
 // CRON: Weekly insight emails (Monday mornings)
-// Trigger weekly via external cron service (e.g. cron-job.org).
-// Protected by CRON_SECRET to prevent abuse.
 // ===========================================================================
 const ALLERGEN_BITS = [
   'celery', 'gluten', 'crustaceans', 'eggs', 'fish', 'lupin', 'milk',
   'molluscs', 'mustard', 'tree_nuts', 'peanuts', 'sesame', 'soybeans', 'sulphites',
 ]
-
 app.post('/api/cron/weekly-insights', async (c) => {
   const cronSecret = process.env.CRON_SECRET
   const authHeader = c.req.header('Authorization')
-
   if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return c.json({ error: 'Unauthorized' }, 401)
   }
-
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
     const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString()
-
-    // Get all active venues with email
     const activeVenues = await sql`
       SELECT id, name, email
       FROM venues
@@ -283,11 +251,9 @@ app.post('/api/cron/weekly-insights', async (c) => {
         AND email IS NOT NULL
         AND email != ''
     `
-
     let sent = 0
     for (const venue of activeVenues) {
       try {
-        // Gather stats in parallel
         const [
           scansThisWeekResult,
           scansPrevWeekResult,
@@ -309,8 +275,6 @@ app.post('/api/cron/weekly-insights', async (c) => {
           sql`SELECT COUNT(*)::int as count FROM dishes WHERE venue_id = ${venue.id} AND active = true`,
           sql`SELECT verified_at FROM verification_log WHERE venue_id = ${venue.id} AND type != 'missed' ORDER BY verified_at DESC LIMIT 1`,
         ])
-
-        // Calculate top allergens from bitmasks
         const allergenCounts = {}
         const totalWithAllergens = allergenMasksResult.length
         for (const row of allergenMasksResult) {
@@ -329,14 +293,11 @@ app.post('/api/cron/weekly-insights', async (c) => {
           }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 5)
-
-        // Days since last verification
         let lastVerifiedDaysAgo = null
         if (lastVerifiedResult.length > 0) {
           const lastDate = new Date(lastVerifiedResult[0].verified_at)
           lastVerifiedDaysAgo = Math.floor((Date.now() - lastDate.getTime()) / 86400000)
         }
-
         await sendWeeklyInsight({
           venueEmail: venue.email,
           venueName: venue.name,
@@ -357,7 +318,6 @@ app.post('/api/cron/weekly-insights', async (c) => {
         console.error(`Weekly insight error for venue ${venue.id}:`, venueErr)
       }
     }
-
     console.log(`Weekly insights: ${sent} sent out of ${activeVenues.length} active venues`)
     return c.json({ sent, total: activeVenues.length })
   } catch (err) {
@@ -366,18 +326,15 @@ app.post('/api/cron/weekly-insights', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ===========================================================================
 // PUBLIC ROUTES (rate limited by IP)
 // ===========================================================================
-
 // ---------------------------------------------------------------------------
 // PUBLIC: Get venue menu by slug
 // ---------------------------------------------------------------------------
 app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
   const slug = sanitiseSlug(c.req.param('slug'))
   if (!slug) return c.json({ error: 'Invalid venue slug' }, 400)
-
   try {
     const venues = await sql`
       SELECT id, name, slug, address, show_nutrition
@@ -389,7 +346,6 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
       return c.json({ error: 'Venue not found' }, 404)
     }
     const venue = venues[0]
-
     const dishes = await sql`
       SELECT id, name, description, price_pence, category, allergen_mask, sort_order,
         is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
@@ -398,7 +354,6 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
       WHERE venue_id = ${venue.id} AND active = true
       ORDER BY sort_order, created_at
     `
-
     const verifications = await sql`
       SELECT verified_at, type, note
       FROM verification_log
@@ -406,12 +361,10 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
       ORDER BY verified_at DESC
       LIMIT 1
     `
-
     sql`
       INSERT INTO menu_scans (venue_id, is_return, profile_saved)
       VALUES (${venue.id}, false, false)
     `.catch((err) => console.error('Scan log error:', err))
-
     return c.json({
       venue: {
         id: venue.id,
@@ -451,23 +404,19 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // PUBLIC: Save customer profile (stricter rate limit)
 // ---------------------------------------------------------------------------
 app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
   const slug = sanitiseSlug(c.req.param('slug'))
   if (!slug) return c.json({ error: 'Invalid venue slug' }, 400)
-
   let body
   try {
     body = await c.req.json()
   } catch {
     return c.json({ error: 'Invalid JSON body' }, 400)
   }
-
   const { identifier, allergenMask, allergenIds, marketingConsent } = body
-
   if (!identifier || typeof identifier !== 'string') {
     return c.json({ error: 'identifier is required' }, 400)
   }
@@ -478,7 +427,6 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
   if (allergenIds && !Array.isArray(allergenIds)) {
     return c.json({ error: 'allergenIds must be an array' }, 400)
   }
-
   try {
     const venues = await sql`
       SELECT id FROM venues WHERE slug = ${slug} OR id = ${slug} LIMIT 1
@@ -487,24 +435,23 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
       return c.json({ error: 'Venue not found' }, 404)
     }
     const venueId = venues[0].id
-
     const encoder = new TextEncoder()
     const data = encoder.encode(identifier.trim().toLowerCase())
     const hashBuffer = await crypto.subtle.digest('SHA-256', data)
     const hashArray = Array.from(new Uint8Array(hashBuffer))
     const hashedId = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
-
     const cleanAllergenIds = Array.isArray(allergenIds)
       ? allergenIds.filter((id) => typeof id === 'string' && id.length <= 20).slice(0, 14)
       : []
-
     const allergenJson = JSON.stringify(cleanAllergenIds)
     const encryptionKey = process.env.ALLERGEN_ENCRYPTION_KEY || 'safeeat-default-key-change-me'
-
+    // Store encrypted email for marketing-opted customers
+    const cleanEmail = sanitiseString(identifier.trim().toLowerCase(), 254)
+    const shouldStoreEmail = !!marketingConsent && cleanEmail && cleanEmail.includes('@')
     const profiles = await sql`
       INSERT INTO customer_profiles (
         venue_id, hashed_identifier, encrypted_allergens, allergen_mask,
-        profile_consent, marketing_consent, marketing_consent_at
+        profile_consent, marketing_consent, marketing_consent_at, marketing_email
       )
       VALUES (
         ${venueId},
@@ -513,7 +460,8 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
         ${cleanMask},
         true,
         ${!!marketingConsent},
-        ${marketingConsent ? new Date().toISOString() : null}
+        ${marketingConsent ? new Date().toISOString() : null},
+        ${shouldStoreEmail ? sql`pgp_sym_encrypt(${cleanEmail}, ${encryptionKey})` : null}
       )
       ON CONFLICT (venue_id, hashed_identifier)
       DO UPDATE SET
@@ -521,11 +469,17 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
         allergen_mask = EXCLUDED.allergen_mask,
         marketing_consent = EXCLUDED.marketing_consent,
         marketing_consent_at = CASE WHEN EXCLUDED.marketing_consent THEN now() ELSE customer_profiles.marketing_consent_at END,
+        marketing_email = CASE
+          WHEN ${!!marketingConsent} AND ${shouldStoreEmail}
+          THEN pgp_sym_encrypt(${cleanEmail}, ${encryptionKey})
+          WHEN NOT ${!!marketingConsent}
+          THEN NULL
+          ELSE customer_profiles.marketing_email
+        END,
         last_visit_at = now(),
         visit_count = customer_profiles.visit_count + 1
       RETURNING id, visit_count
     `
-
     return c.json({ saved: true, profileId: profiles[0].id, visits: profiles[0].visit_count })
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'POST /api/menu/:slug/profile', slug } })
@@ -533,7 +487,6 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // PUBLIC: Contact form submission (stricter rate limit)
 // ---------------------------------------------------------------------------
@@ -565,14 +518,11 @@ app.post('/api/contact', rateLimitProfile(), async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ===========================================================================
 // DASHBOARD ROUTES (authenticated + rate limited by venue)
 // ===========================================================================
-
 app.use('/api/dashboard/*', requireAuth())
 app.use('/api/dashboard/*', rateLimitDashboard())
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Get current user's venue
 // ---------------------------------------------------------------------------
@@ -595,27 +545,22 @@ app.get('/api/dashboard/me', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Create venue (onboarding)
 // ---------------------------------------------------------------------------
 app.post('/api/dashboard/venues', async (c) => {
   const clerkUserId = c.get('clerkUserId')
-
   let body
   try {
     body = await c.req.json()
   } catch {
     return c.json({ error: 'Invalid JSON body' }, 400)
   }
-
   const name = sanitiseString(body.name, 200)
   const address = sanitiseString(body.address, 500)
   const phone = sanitiseString(body.phone, 20)
   const email = sanitiseString(body.email, 254)
-
   if (!name) return c.json({ error: 'Venue name is required' }, 400)
-
   try {
     const existing = await sql`
       SELECT id FROM venues WHERE clerk_user_id = ${clerkUserId} LIMIT 1
@@ -623,19 +568,15 @@ app.post('/api/dashboard/venues', async (c) => {
     if (existing.length > 0) {
       return c.json({ error: 'You already have a venue' }, 409)
     }
-
     const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50)
     const slugSuffix = Math.random().toString(36).slice(2, 6)
     const slug = `${baseSlug}-${slugSuffix}`
-
     const venueId = `venue-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-
     const venues = await sql`
       INSERT INTO venues (id, name, slug, address, phone, email, clerk_user_id, subscription_status)
       VALUES (${venueId}, ${name}, ${slug}, ${address}, ${phone}, ${email}, ${clerkUserId}, 'trial')
       RETURNING id, name, slug, address, phone, email
     `
-
     console.log(`New venue created: ${name} (${venueId}) by ${clerkUserId}`)
     return c.json({ venue: venues[0] }, 201)
   } catch (err) {
@@ -644,26 +585,21 @@ app.post('/api/dashboard/venues', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // Venue-scoped routes need enforceVenueAccess
 app.use('/api/dashboard/:venueId/*', enforceVenueAccess())
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Get venue stats
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/stats', async (c) => {
   const venueId = c.get('venueId')
-
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-
     const [scans, profiles, optIns, verification] = await Promise.all([
       sql`SELECT COUNT(*)::int as count FROM menu_scans WHERE venue_id = ${venueId} AND scanned_at > ${sevenDaysAgo}`,
       sql`SELECT COUNT(*)::int as count FROM customer_profiles WHERE venue_id = ${venueId}`,
       sql`SELECT COUNT(*)::int as count FROM customer_profiles WHERE venue_id = ${venueId} AND marketing_consent = true`,
       sql`SELECT verified_at FROM verification_log WHERE venue_id = ${venueId} AND type != 'missed' ORDER BY verified_at DESC LIMIT 1`,
     ])
-
     return c.json({
       scansWeek: scans[0].count,
       totalProfiles: profiles[0].count,
@@ -676,13 +612,11 @@ app.get('/api/dashboard/:venueId/stats', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Get dishes for venue
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/dishes', async (c) => {
   const venueId = c.get('venueId')
-
   try {
     const dishes = await sql`
       SELECT id, name, description, price_pence, category, allergen_mask, ingredients,
@@ -700,20 +634,17 @@ app.get('/api/dashboard/:venueId/dishes', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Create dish
 // ---------------------------------------------------------------------------
 app.post('/api/dashboard/:venueId/dishes', async (c) => {
   const venueId = c.get('venueId')
-
   let body
   try {
     body = await c.req.json()
   } catch {
     return c.json({ error: 'Invalid JSON body' }, 400)
   }
-
   const name = sanitiseString(body.name, 200)
   const description = sanitiseString(body.description, 500)
   const pricePence = sanitisePrice(body.pricePence)
@@ -733,12 +664,10 @@ app.post('/api/dashboard/:venueId/dishes', async (c) => {
   const fibreG = body.fibreG != null && body.fibreG !== '' ? parseFloat(body.fibreG) || null : null
   const sugarG = body.sugarG != null && body.sugarG !== '' ? parseFloat(body.sugarG) || null : null
   const saltG = body.saltG != null && body.saltG !== '' ? parseFloat(body.saltG) || null : null
-
   if (!name) return c.json({ error: 'Dish name is required (max 200 chars)' }, 400)
   if (pricePence === null) return c.json({ error: 'Price must be 0-9999999 pence' }, 400)
   if (!category) return c.json({ error: 'Category must be: Starters, Mains, Desserts, Sides, or Drinks' }, 400)
   if (allergenMask === null) return c.json({ error: 'Allergen mask must be 0-16383' }, 400)
-
   try {
     const dishes = await sql`
       INSERT INTO dishes (venue_id, name, description, price_pence, category, allergen_mask, ingredients,
@@ -758,7 +687,6 @@ app.post('/api/dashboard/:venueId/dishes', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Update dish
 // ---------------------------------------------------------------------------
@@ -766,14 +694,12 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
   const venueId = c.get('venueId')
   const dishId = sanitiseId(c.req.param('dishId'))
   if (!dishId) return c.json({ error: 'Invalid dish ID' }, 400)
-
   let body
   try {
     body = await c.req.json()
   } catch {
     return c.json({ error: 'Invalid JSON body' }, 400)
   }
-
   const updates = {}
   if (body.name !== undefined) {
     updates.name = sanitiseString(body.name, 200)
@@ -813,7 +739,6 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
   if (body.fibreG !== undefined) updates.fibreG = body.fibreG != null && body.fibreG !== '' ? parseFloat(body.fibreG) || null : null
   if (body.sugarG !== undefined) updates.sugarG = body.sugarG != null && body.sugarG !== '' ? parseFloat(body.sugarG) || null : null
   if (body.saltG !== undefined) updates.saltG = body.saltG != null && body.saltG !== '' ? parseFloat(body.saltG) || null : null
-
   try {
     const dishes = await sql`
       UPDATE dishes
@@ -853,7 +778,6 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Delete dish
 // ---------------------------------------------------------------------------
@@ -861,7 +785,6 @@ app.delete('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
   const venueId = c.get('venueId')
   const dishId = sanitiseId(c.req.param('dishId'))
   if (!dishId) return c.json({ error: 'Invalid dish ID' }, 400)
-
   try {
     const result = await sql`
       DELETE FROM dishes WHERE id = ${dishId} AND venue_id = ${venueId}
@@ -877,13 +800,11 @@ app.delete('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Verification log
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/verifications', async (c) => {
   const venueId = c.get('venueId')
-
   try {
     const log = await sql`
       SELECT id, type, note, verified_at
@@ -899,24 +820,19 @@ app.get('/api/dashboard/:venueId/verifications', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 app.post('/api/dashboard/:venueId/verifications', async (c) => {
   const venueId = c.get('venueId')
-
   let body
   try {
     body = await c.req.json()
   } catch {
     return c.json({ error: 'Invalid JSON body' }, 400)
   }
-
   const { type } = body
   const note = sanitiseString(body.note, 500)
-
   if (!type || !['confirmed', 'updated'].includes(type)) {
     return c.json({ error: 'type must be confirmed or updated' }, 400)
   }
-
   try {
     const entries = await sql`
       INSERT INTO verification_log (venue_id, type, note)
@@ -930,13 +846,11 @@ app.post('/api/dashboard/:venueId/verifications', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Customer profiles (read-only — no PII exposed)
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/customers', async (c) => {
   const venueId = c.get('venueId')
-
   try {
     const profiles = await sql`
       SELECT id, allergen_mask, marketing_consent, last_visit_at, visit_count, created_at
@@ -951,13 +865,135 @@ app.get('/api/dashboard/:venueId/customers', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
+// ---------------------------------------------------------------------------
+// DASHBOARD: Notification audience stats (how many recipients per allergen)
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/:venueId/notifications/stats', async (c) => {
+  const venueId = c.get('venueId')
+  try {
+    const profiles = await sql`
+      SELECT allergen_mask
+      FROM customer_profiles
+      WHERE venue_id = ${venueId}
+        AND marketing_consent = true
+        AND marketing_email IS NOT NULL
+    `
+    const total = profiles.length
+    const allergenCounts = {}
+    for (const row of profiles) {
+      const mask = row.allergen_mask
+      for (let i = 0; i < ALLERGEN_BITS.length; i++) {
+        if (mask & (1 << i)) {
+          allergenCounts[ALLERGEN_BITS[i]] = (allergenCounts[ALLERGEN_BITS[i]] || 0) + 1
+        }
+      }
+    }
+    return c.json({ total, allergenCounts })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/notifications/stats', venueId } })
+    console.error('Notification stats error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
+// DASHBOARD: Send notification to customers
+// ---------------------------------------------------------------------------
+app.post('/api/dashboard/:venueId/notifications', async (c) => {
+  const venueId = c.get('venueId')
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+  const subject = sanitiseString(body.subject, 200)
+  const message = sanitiseString(body.message, 2000)
+  const allergenFilter = body.allergenFilter || null // e.g. 'gluten' or null for all
+  const dietaryFilter = body.dietaryFilter || null // e.g. 'vegan' or null for all
+  if (!subject) return c.json({ error: 'Subject is required' }, 400)
+  if (!message) return c.json({ error: 'Message is required' }, 400)
+  try {
+    // Get venue details for email template
+    const venues = await sql`
+      SELECT name, slug FROM venues WHERE id = ${venueId} LIMIT 1
+    `
+    if (venues.length === 0) return c.json({ error: 'Venue not found' }, 404)
+    const venue = venues[0]
+    const encryptionKey = process.env.ALLERGEN_ENCRYPTION_KEY || 'safeeat-default-key-change-me'
+    // Get marketing-opted profiles with decrypted emails
+    const profiles = await sql`
+      SELECT
+        allergen_mask,
+        pgp_sym_decrypt(marketing_email, ${encryptionKey}) as email
+      FROM customer_profiles
+      WHERE venue_id = ${venueId}
+        AND marketing_consent = true
+        AND marketing_email IS NOT NULL
+    `
+    // Filter by allergen if specified
+    let filtered = profiles
+    if (allergenFilter) {
+      const bitIndex = ALLERGEN_BITS.indexOf(allergenFilter)
+      if (bitIndex >= 0) {
+        const bitMask = 1 << bitIndex
+        filtered = filtered.filter((p) => p.allergen_mask & bitMask)
+      }
+    }
+    // Send emails
+    let sent = 0
+    const errors = []
+    for (const profile of filtered) {
+      try {
+        const emailId = await sendCustomerNotification({
+          to: profile.email,
+          subject,
+          message,
+          venueName: venue.name,
+          venueSlug: venue.slug,
+        })
+        if (emailId) sent++
+      } catch (emailErr) {
+        errors.push(emailErr.message || 'Unknown error')
+      }
+    }
+    // Log the notification
+    await sql`
+      INSERT INTO notification_log (venue_id, subject, message, allergen_filter, dietary_filter, recipients_count)
+      VALUES (${venueId}, ${subject}, ${message}, ${allergenFilter}, ${dietaryFilter}, ${sent})
+    `
+    console.log(`Notification sent by venue ${venueId}: "${subject}" to ${sent}/${filtered.length} recipients`)
+    return c.json({ sent, total: filtered.length, errors: errors.length }, 201)
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/:venueId/notifications', venueId } })
+    console.error('Notification send error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
+// DASHBOARD: Get notification history
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/:venueId/notifications', async (c) => {
+  const venueId = c.get('venueId')
+  try {
+    const log = await sql`
+      SELECT id, subject, message, allergen_filter, dietary_filter, recipients_count, sent_at
+      FROM notification_log
+      WHERE venue_id = ${venueId}
+      ORDER BY sent_at DESC
+      LIMIT 50
+    `
+    return c.json({ notifications: log })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/notifications', venueId } })
+    console.error('Notification history error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
 // ---------------------------------------------------------------------------
 // DASHBOARD: Get venue details (for settings page)
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/venue', async (c) => {
   const venueId = c.get('venueId')
-
   try {
     const venues = await sql`
       SELECT id, name, slug, address, phone, email, show_nutrition
@@ -975,20 +1011,17 @@ app.get('/api/dashboard/:venueId/venue', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Update venue details
 // ---------------------------------------------------------------------------
 app.put('/api/dashboard/:venueId/venue', async (c) => {
   const venueId = c.get('venueId')
-
   let body
   try {
     body = await c.req.json()
   } catch {
     return c.json({ error: 'Invalid JSON body' }, 400)
   }
-
   const updates = {}
   if (body.name !== undefined) {
     updates.name = sanitiseString(body.name, 200)
@@ -1006,7 +1039,6 @@ app.put('/api/dashboard/:venueId/venue', async (c) => {
   if (body.showNutrition !== undefined) {
     updates.showNutrition = !!body.showNutrition
   }
-
   try {
     const venues = await sql`
       UPDATE venues
@@ -1029,13 +1061,11 @@ app.put('/api/dashboard/:venueId/venue', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Subscription status
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/subscription', async (c) => {
   const venueId = c.get('venueId')
-
   try {
     const sub = await getSubscriptionStatus(venueId, sql)
     return c.json(sub)
@@ -1045,21 +1075,17 @@ app.get('/api/dashboard/:venueId/subscription', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Create Stripe Checkout session
 // ---------------------------------------------------------------------------
 app.post('/api/dashboard/:venueId/billing/checkout', async (c) => {
   const venueId = c.get('venueId')
-
   try {
     const venues = await sql`
       SELECT name, email FROM venues WHERE id = ${venueId} LIMIT 1
     `
     if (venues.length === 0) return c.json({ error: 'Venue not found' }, 404)
-
     const customerId = await getOrCreateCustomer(venueId, venues[0].name, venues[0].email, sql)
-
     const origin = process.env.CORS_ORIGIN || 'https://safeeat.co.uk'
     const session = await createCheckoutSession(
       customerId,
@@ -1067,7 +1093,6 @@ app.post('/api/dashboard/:venueId/billing/checkout', async (c) => {
       `${origin}/dashboard/settings?billing=success`,
       `${origin}/dashboard/settings?billing=canceled`
     )
-
     return c.json({ url: session.url })
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/:venueId/billing/checkout', venueId } })
@@ -1075,27 +1100,22 @@ app.post('/api/dashboard/:venueId/billing/checkout', async (c) => {
     return c.json({ error: err.message || 'Internal server error' }, 500)
   }
 })
-
 // ---------------------------------------------------------------------------
 // DASHBOARD: Create Stripe Customer Portal session
 // ---------------------------------------------------------------------------
 app.post('/api/dashboard/:venueId/billing/portal', async (c) => {
   const venueId = c.get('venueId')
-
   try {
     const venues = await sql`
       SELECT stripe_customer_id, name, email FROM venues WHERE id = ${venueId} LIMIT 1
     `
     if (venues.length === 0) return c.json({ error: 'Venue not found' }, 404)
-
     let customerId = venues[0].stripe_customer_id
     if (!customerId) {
       customerId = await getOrCreateCustomer(venueId, venues[0].name, venues[0].email, sql)
     }
-
     const origin = process.env.CORS_ORIGIN || 'https://safeeat.co.uk'
     const session = await createPortalSession(customerId, `${origin}/dashboard/settings`)
-
     return c.json({ url: session.url })
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/:venueId/billing/portal', venueId } })
@@ -1103,18 +1123,15 @@ app.post('/api/dashboard/:venueId/billing/portal', async (c) => {
     return c.json({ error: err.message || 'Internal server error' }, 500)
   }
 })
-
 // ===========================================================================
 // STATIC FILES (SPA fallback)
 // ===========================================================================
 app.use('/*', serveStatic({ root: './dist' }))
 app.get('/*', serveStatic({ root: './dist', path: 'index.html' }))
-
 // ===========================================================================
 // START SERVER
 // ===========================================================================
 const port = parseInt(process.env.PORT || '8080')
-
 serve({ fetch: app.fetch, port }, () => {
   console.log(`SafeEat API running on port ${port}`)
   console.log(`Auth: Clerk JWT verification enabled on /api/dashboard/*`)
