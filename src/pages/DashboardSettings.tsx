@@ -9,6 +9,7 @@ interface VenueDetails {
   address: string
   phone: string
   email: string
+  showNutrition: boolean
 }
 
 interface SubscriptionInfo {
@@ -20,6 +21,7 @@ interface SubscriptionInfo {
 const STATUS_LABELS: Record<string, { label: string; colour: string }> = {
   active: { label: 'Active', colour: 'bg-se-green-50 text-se-green-700' },
   trialing: { label: 'Free trial', colour: 'bg-blue-50 text-blue-700' },
+  trial: { label: 'Free trial', colour: 'bg-blue-50 text-blue-700' },
   past_due: { label: 'Past due', colour: 'bg-amber-50 text-amber-700' },
   canceled: { label: 'Canceled', colour: 'bg-red-50 text-red-700' },
   unpaid: { label: 'Unpaid', colour: 'bg-red-50 text-red-700' },
@@ -34,15 +36,15 @@ export default function DashboardSettings() {
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState<VenueDetails>({ name: '', address: '', phone: '', email: '' })
+  const [draft, setDraft] = useState<VenueDetails>({ name: '', address: '', phone: '', email: '', showNutrition: false })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [billingLoading, setBillingLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [nutritionSaving, setNutritionSaving] = useState(false)
 
   const menuUrl = `${window.location.origin}/menu/${venueSlug}`
 
-  // Check for billing redirect
   const billingResult = searchParams.get('billing')
   useEffect(() => {
     if (billingResult) {
@@ -53,7 +55,7 @@ export default function DashboardSettings() {
   useEffect(() => {
     let cancelled = false
     Promise.all([
-      request<{ venue: { name: string; address: string; phone: string; email: string } }>(
+      request<{ venue: { name: string; address: string; phone: string; email: string; show_nutrition: boolean } }>(
         `/api/dashboard/${venueId}/venue`
       ),
       request<SubscriptionInfo>(
@@ -62,11 +64,12 @@ export default function DashboardSettings() {
     ])
       .then(([venueData, subData]) => {
         if (cancelled) return
-        const v = {
+        const v: VenueDetails = {
           name: venueData.venue.name || '',
           address: venueData.venue.address || '',
           phone: venueData.venue.phone || '',
           email: venueData.venue.email || '',
+          showNutrition: venueData.venue.show_nutrition || false,
         }
         setVenue(v)
         setDraft(v)
@@ -81,15 +84,16 @@ export default function DashboardSettings() {
     setSaving(true)
     setError(null)
     try {
-      const res = await request<{ venue: { name: string; address: string; phone: string; email: string } }>(
+      const res = await request<{ venue: { name: string; address: string; phone: string; email: string; show_nutrition: boolean } }>(
         `/api/dashboard/${venueId}/venue`,
-        { method: 'PUT', body: draft }
+        { method: 'PUT', body: { name: draft.name, address: draft.address, phone: draft.phone, email: draft.email } }
       )
-      const v = {
+      const v: VenueDetails = {
         name: res.venue.name || '',
         address: res.venue.address || '',
         phone: res.venue.phone || '',
         email: res.venue.email || '',
+        showNutrition: res.venue.show_nutrition || false,
       }
       setVenue(v)
       setDraft(v)
@@ -100,6 +104,25 @@ export default function DashboardSettings() {
       setError(err.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleNutritionToggle = async () => {
+    if (!venue) return
+    const newValue = !venue.showNutrition
+    setNutritionSaving(true)
+    setError(null)
+    try {
+      await request(
+        `/api/dashboard/${venueId}/venue`,
+        { method: 'PUT', body: { showNutrition: newValue } }
+      )
+      setVenue({ ...venue, showNutrition: newValue })
+      setDraft((prev) => ({ ...prev, showNutrition: newValue }))
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setNutritionSaving(false)
     }
   }
 
@@ -138,7 +161,7 @@ export default function DashboardSettings() {
     }
   }
 
-  const subStatus = STATUS_LABELS[subscription?.status || 'trialing'] || STATUS_LABELS.trialing
+  const subStatus = STATUS_LABELS[subscription?.status || 'trial'] || STATUS_LABELS.trial
   const hasSubscription = subscription?.subscriptionId !== null
 
   if (loading) {
@@ -174,60 +197,40 @@ export default function DashboardSettings() {
       )}
 
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Venue details */}
+        {/* Left column */}
         <div>
+          {/* Venue details */}
           <h3 className="text-sm font-semibold text-gray-700 mb-3">Venue details</h3>
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             {editing ? (
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Venue name</label>
-                  <input
-                    type="text"
-                    value={draft.name}
-                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent"
-                  />
+                  <input type="text" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent" />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Address</label>
-                  <input
-                    type="text"
-                    value={draft.address}
-                    onChange={(e) => setDraft({ ...draft, address: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent"
-                  />
+                  <input type="text" value={draft.address} onChange={(e) => setDraft({ ...draft, address: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent" />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Phone</label>
-                  <input
-                    type="tel"
-                    value={draft.phone}
-                    onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent"
-                  />
+                  <input type="tel" value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent" />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={draft.email}
-                    onChange={(e) => setDraft({ ...draft, email: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent"
-                  />
+                  <input type="email" value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent" />
                 </div>
                 <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex-1 px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors disabled:opacity-50"
-                  >
+                  <button onClick={handleSave} disabled={saving}
+                    className="flex-1 px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors disabled:opacity-50">
                     {saving ? 'Saving…' : 'Save'}
                   </button>
-                  <button
-                    onClick={handleCancel}
-                    className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition-colors"
-                  >
+                  <button onClick={handleCancel}
+                    className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition-colors">
                     Cancel
                   </button>
                 </div>
@@ -252,17 +255,44 @@ export default function DashboardSettings() {
                     <p className="text-sm text-gray-700">{venue?.email || '—'}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setEditing(true)}
-                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
-                >
+                <button onClick={() => setEditing(true)}
+                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors">
                   Edit details
                 </button>
               </div>
             )}
           </div>
 
-          {/* Subscription — now live with Stripe */}
+          {/* Menu display settings */}
+          <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Menu display</h3>
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Show nutrition information</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Display calories, protein, carbs, fat, fibre, sugar, and salt on your customer-facing menu.
+                  Only shown for dishes where you've entered nutrition data.
+                </p>
+              </div>
+              <button
+                onClick={handleNutritionToggle}
+                disabled={nutritionSaving}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ml-4 ${
+                  venue?.showNutrition ? 'bg-se-green-600' : 'bg-gray-300'
+                } ${nutritionSaving ? 'opacity-50' : ''}`}
+                role="switch"
+                aria-checked={venue?.showNutrition}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    venue?.showNutrition ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Subscription */}
           <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Subscription</h3>
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-3">
@@ -280,22 +310,19 @@ export default function DashboardSettings() {
               <p>✓ Weekly verification & audit trail</p>
               <p>✓ QR code for your menu</p>
               <p>✓ Push notifications to opted-in customers</p>
+              <p>✓ Dietary preference filters</p>
+              <p>✓ Calorie & nutrition display</p>
+              <p>✓ Ingredient auto-detection</p>
             </div>
             <div className="flex gap-2">
               {!hasSubscription ? (
-                <button
-                  onClick={handleSubscribe}
-                  disabled={billingLoading}
-                  className="px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors disabled:opacity-50"
-                >
+                <button onClick={handleSubscribe} disabled={billingLoading}
+                  className="px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors disabled:opacity-50">
                   {billingLoading ? 'Redirecting…' : 'Subscribe now'}
                 </button>
               ) : (
-                <button
-                  onClick={handleManageBilling}
-                  disabled={billingLoading}
-                  className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
-                >
+                <button onClick={handleManageBilling} disabled={billingLoading}
+                  className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium hover:bg-gray-200 transition-colors disabled:opacity-50">
                   {billingLoading ? 'Loading…' : 'Manage billing'}
                 </button>
               )}
@@ -303,15 +330,11 @@ export default function DashboardSettings() {
           </div>
         </div>
 
-        {/* QR Code */}
+        {/* Right column - QR Code */}
         <div>
           <h3 className="text-sm font-semibold text-gray-700 mb-3">Your menu QR code</h3>
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <QRCodeDisplay
-              url={menuUrl}
-              size={220}
-              label="Scan to see the allergen-filtered menu"
-            />
+            <QRCodeDisplay url={menuUrl} size={220} label="Scan to see the allergen-filtered menu" />
             <div className="mt-5 space-y-2">
               <button
                 onClick={() => {
@@ -320,14 +343,11 @@ export default function DashboardSettings() {
                   link.download = 'safeeat-qr-code.png'
                   link.click()
                 }}
-                className="w-full px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors"
-              >
+                className="w-full px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors">
                 Download QR code (PNG)
               </button>
-              <button
-                onClick={() => navigator.clipboard.writeText(menuUrl)}
-                className="w-full px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
-              >
+              <button onClick={() => navigator.clipboard.writeText(menuUrl)}
+                className="w-full px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors">
                 Copy menu link
               </button>
             </div>
