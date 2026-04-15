@@ -310,6 +310,59 @@ export async function sendCustomerNotification({ to, subject, message, venueName
 // ---------------------------------------------------------------------------
 // Utility
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// 6. Review request → sent 2 hours after a customer saves their profile
+// ---------------------------------------------------------------------------
+export async function sendReviewRequest({ to, venueName, venueSlug, googleReviewUrl, tripadvisorUrl }) {
+  if (!to) return null
+
+  const reviewButtons = []
+  if (googleReviewUrl) {
+    reviewButtons.push(`<a href="${escapeHtml(googleReviewUrl)}" style="display: inline-block; padding: 12px 24px; background: #4285f4; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; margin-right: 8px;">Leave a Google Review</a>`)
+  }
+  if (tripadvisorUrl) {
+    reviewButtons.push(`<a href="${escapeHtml(tripadvisorUrl)}" style="display: inline-block; padding: 12px 24px; background: #34e0a1; color: #111827; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Leave a TripAdvisor Review</a>`)
+  }
+
+  return sendEmail({
+    to,
+    subject: `How was your meal at ${venueName}?`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 40px;">🍽️</span>
+          <h1 style="color: #111827; font-size: 20px; margin: 8px 0 4px;">Thanks for visiting ${escapeHtml(venueName)}</h1>
+          <p style="color: #6b7280; margin: 0;">We hope you enjoyed your meal</p>
+        </div>
+        <div style="background: #f0fdf4; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <p style="color: #374151; margin: 0; font-size: 15px; line-height: 1.7;">
+            We noticed you used our allergen menu today — we take food safety seriously, and your trust means a lot to us.
+          </p>
+          <p style="color: #374151; margin: 12px 0 0; font-size: 15px; line-height: 1.7;">
+            If you enjoyed your experience, a quick review helps other diners with allergies find safe places to eat.
+          </p>
+        </div>
+        <div style="text-align: center; margin-bottom: 24px;">
+          ${reviewButtons.join('\n          ')}
+        </div>
+        <div style="text-align: center; margin-bottom: 24px;">
+          <a href="https://safeeat.co.uk/menu/${escapeHtml(venueSlug)}" style="display: inline-block; padding: 10px 24px; background: #f3f4f6; color: #374151; text-decoration: none; border-radius: 8px; font-size: 13px;">View our menu</a>
+        </div>
+        <div style="background: #f9fafb; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+          <p style="color: #9ca3af; margin: 0; font-size: 12px; text-align: center; line-height: 1.6;">
+            Didn't visit us today? No worries — we hope to see you soon!
+          </p>
+        </div>
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 16px;">
+          <p style="color: #9ca3af; font-size: 11px; text-align: center; margin: 0;">
+            You're receiving this because you saved your allergen profile at ${escapeHtml(venueName)}.<br>
+            Sent via <a href="https://safeeat.co.uk" style="color: #16a34a;">SafeEat</a>
+          </p>
+        </div>
+      </div>
+    `,
+  })
+}
 function escapeHtml(str) {
   if (!str) return ''
   return str
