@@ -457,6 +457,14 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
     // Store encrypted email for marketing-opted customers
     const cleanEmail = sanitiseString(identifier.trim().toLowerCase(), 254)
     const shouldStoreEmail = !!marketingConsent && cleanEmail && cleanEmail.includes('@')
+
+    // Pre-encrypt email separately to avoid nested sql template issues
+    let encryptedEmail = null
+    if (shouldStoreEmail) {
+      const enc = await sql`SELECT pgp_sym_encrypt(${cleanEmail}, ${encryptionKey}) as val`
+      encryptedEmail = enc[0].val
+    }
+
     const profiles = await sql`
       INSERT INTO customer_profiles (
         venue_id, hashed_identifier, encrypted_allergens, allergen_mask,
@@ -470,7 +478,7 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
         true,
         ${!!marketingConsent},
         ${marketingConsent ? new Date().toISOString() : null},
-        ${shouldStoreEmail ? sql`pgp_sym_encrypt(${cleanEmail}, ${encryptionKey})` : null}
+        ${encryptedEmail}
       )
       ON CONFLICT (venue_id, hashed_identifier)
       DO UPDATE SET
@@ -480,7 +488,7 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
         marketing_consent_at = CASE WHEN EXCLUDED.marketing_consent THEN now() ELSE customer_profiles.marketing_consent_at END,
         marketing_email = CASE
           WHEN ${!!marketingConsent} AND ${shouldStoreEmail}
-          THEN pgp_sym_encrypt(${cleanEmail}, ${encryptionKey})
+          THEN ${encryptedEmail}
           WHEN NOT ${!!marketingConsent}
           THEN NULL
           ELSE customer_profiles.marketing_email
