@@ -34,13 +34,13 @@ export default function DashboardCustomers() {
       .then((data) => {
         if (cancelled) return
         setProfiles(
-          data.profiles.map((p) => ({
+          data.customers.map((p) => ({
             id: p.id,
             allergenMask: p.allergen_mask,
             visitCount: p.visit_count,
-            marketingOptIn: p.marketing_opt_in,
+            marketingOptIn: p.marketing_consent,
             createdAt: p.created_at,
-            lastVisit: p.last_visit,
+            lastVisit: p.last_visit_at,
           }))
         )
       })
