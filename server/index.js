@@ -29,6 +29,7 @@ import {
   sendVerificationReminder,
   sendWeeklyInsight,
   sendCustomerNotification,
+  sendReviewRequest,
 } from './email.js'
 import { generateEhoReport } from './ehoReport.js'
 import { generateTableTalker } from './tableTalker.js'
@@ -326,6 +327,74 @@ app.post('/api/cron/weekly-insights', async (c) => {
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'POST /api/cron/weekly-insights' } })
     console.error('Weekly insight cron error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ===========================================================================
+// CRON: Review request emails (2 hours after profile save)
+// ===========================================================================
+app.post('/api/cron/review-requests', async (c) => {
+  const cronSecret = process.env.CRON_SECRET
+  const authHeader = c.req.header('Authorization')
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  try {
+    const encryptionKey = process.env.ALLERGEN_ENCRYPTION_KEY || 'safeeat-default-key-change-me'
+
+    // Find profiles saved 2-4 hours ago that haven't received a review email
+    // and where the venue has review prompts enabled
+    const profiles = await sql`
+      SELECT
+        cp.id,
+        cp.venue_id,
+        pgp_sym_decrypt(cp.marketing_email, ${encryptionKey}) as email,
+        v.name as venue_name,
+        v.slug as venue_slug,
+        v.google_review_url,
+        v.tripadvisor_url
+      FROM customer_profiles cp
+      JOIN venues v ON v.id = cp.venue_id
+      WHERE cp.last_visit_at > now() - INTERVAL '4 hours'
+        AND cp.last_visit_at < now() - INTERVAL '2 hours'
+        AND cp.review_email_sent_at IS NULL
+        AND cp.marketing_consent = true
+        AND cp.marketing_email IS NOT NULL
+        AND v.show_review_prompt = true
+        AND (v.google_review_url != '' OR v.tripadvisor_url != '')
+        AND v.subscription_status IN ('active', 'trialing', 'trial')
+    `
+
+    let sent = 0
+    for (const profile of profiles) {
+      try {
+        const emailId = await sendReviewRequest({
+          to: profile.email,
+          venueName: profile.venue_name,
+          venueSlug: profile.venue_slug,
+          googleReviewUrl: profile.google_review_url,
+          tripadvisorUrl: profile.tripadvisor_url,
+        })
+
+        if (emailId) {
+          await sql`
+            UPDATE customer_profiles
+            SET review_email_sent_at = now()
+            WHERE id = ${profile.id}
+          `
+          sent++
+        }
+      } catch (emailErr) {
+        console.error(`Review email error for profile ${profile.id}:`, emailErr)
+      }
+    }
+
+    console.log(`Review requests: ${sent} sent out of ${profiles.length} eligible profiles`)
+    return c.json({ sent, total: profiles.length })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/cron/review-requests' } })
+    console.error('Review request cron error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
