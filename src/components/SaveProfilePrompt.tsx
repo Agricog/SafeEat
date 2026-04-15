@@ -3,7 +3,7 @@ import { useState } from 'react'
 interface SaveProfilePromptProps {
   venueName: string
   allergenCount: number
-  onSave: (marketingConsent: boolean) => void
+  onSave: (marketingConsent: boolean, email: string) => void
   onDismiss: () => void
 }
 
@@ -14,6 +14,7 @@ export default function SaveProfilePrompt({
   onDismiss,
 }: SaveProfilePromptProps) {
   const [marketingOptIn, setMarketingOptIn] = useState(false)
+  const [email, setEmail] = useState('')
 
   return (
     <div className="bg-white rounded-2xl border border-se-green-200 shadow-sm p-5 mx-4 mt-4">
@@ -29,6 +30,17 @@ export default function SaveProfilePrompt({
             {venueName} will remember your {allergenCount} allergen{allergenCount > 1 ? 's' : ''} so
             the menu is filtered for you every time you visit.
           </p>
+
+          {/* Email input */}
+          <div className="mt-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Your email address"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent"
+            />
+          </div>
 
           {/* Consent 1: Profile save — implied by tapping Save */}
           <p className="text-xs text-gray-400 mt-3">
@@ -51,7 +63,7 @@ export default function SaveProfilePrompt({
 
           <div className="flex gap-2 mt-4">
             <button
-              onClick={() => onSave(marketingOptIn)}
+              onClick={() => onSave(marketingOptIn, email)}
               className="flex-1 px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors"
             >
               Save my profile
