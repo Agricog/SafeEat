@@ -20,23 +20,31 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Do I need any special hardware or equipment?',
-    a: 'No. SafeEat is entirely web-based. Your customers scan a QR code with their phone camera — no app download required. You manage your menu and allergens from any browser. All you need is the printed QR code, which you can download from your dashboard.',
+    a: 'No. SafeEat is entirely web-based. Your customers scan a QR code with their phone camera — no app download required. You manage your menu and allergens from any browser. All you need is the printed QR code or table talker, which you can download from your dashboard.',
   },
   {
     q: 'What happens during an EHO inspection?',
-    a: 'SafeEat keeps a timestamped, append-only verification log that records every time you confirm or update your menu allergen information. This gives Environmental Health Officers a clear audit trail showing your ongoing allergen diligence — dates, times, and any changes made.',
+    a: 'SafeEat generates a comprehensive EHO inspection report PDF with one click. It includes your full allergen matrix showing every dish against every allergen, dietary declarations, ingredient records, staff training records, and your complete verification audit trail with timestamps. Environmental Health Officers get clear, documented evidence of your allergen management process.',
   },
   {
     q: 'How is customer allergy data protected?',
     a: 'Customer allergen profiles are special-category health data under UK GDPR Article 9. SafeEat encrypts all allergen data at rest, hashes personal identifiers, stores profiles only with explicit consent, and auto-deletes after 18 months of inactivity. Customers can delete their profile at any time.',
   },
   {
+    q: 'Can I send notifications to my allergy customers?',
+    a: 'Yes. Customers who opt into marketing can receive targeted notifications when your menu changes. You can filter by specific allergens — for example, notify only gluten-intolerant customers when you add new gluten-free dishes. This turns allergen compliance into a direct retention channel.',
+  },
+  {
+    q: 'Can customers share a pre-filtered menu link?',
+    a: 'Yes. When a customer has their allergens selected, they can share a link that pre-filters your menu for the same allergies. This is especially useful for group bookings — one person with a nut allergy can send the filtered menu to the group so everyone can see what the restaurant offers safely.',
+  },
+  {
     q: 'Can I try SafeEat before paying?',
-    a: 'Yes. Every new venue gets a free trial with full access to all features — allergen menus, customer profiles, verification audit trail, and QR codes. No credit card required to start.',
+    a: 'Yes. Every new venue gets a free trial with full access to all features — allergen menus, customer profiles, verification audit trail, analytics, notifications, and QR codes. No credit card required to start.',
   },
   {
     q: 'How much does SafeEat cost?',
-    a: 'SafeEat Starter is £29.99 per month per venue. This includes unlimited menu items, customer allergen profiles, the weekly verification audit trail, your QR code, and notifications to opted-in customers. No setup fees, no long-term contracts — cancel any time.',
+    a: 'SafeEat Starter is £29.99 per month per venue. This includes every feature — unlimited menu items, dish photos, customer allergen profiles, EHO inspection reports, analytics dashboard, targeted notifications, staff training log, printable table talkers, and more. No setup fees, no long-term contracts — cancel any time.',
   },
 ]
 
@@ -59,7 +67,6 @@ export default function HomePage() {
       <Helmet>
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>
-
       <div className="min-h-screen bg-white">
         {/* ================================================================
             NAV
@@ -71,6 +78,7 @@ export default function HomePage() {
               <span className="text-lg font-bold text-gray-900">SafeEat</span>
             </div>
             <div className="flex items-center gap-3">
+              <a href="#features" className="text-sm text-gray-600 hover:text-gray-900 transition-colors hidden sm:block">Features</a>
               <a href="#pricing" className="text-sm text-gray-600 hover:text-gray-900 transition-colors hidden sm:block">Pricing</a>
               <a href="#faq" className="text-sm text-gray-600 hover:text-gray-900 transition-colors hidden sm:block">FAQ</a>
               <Link
@@ -104,7 +112,8 @@ export default function HomePage() {
             </h1>
             <p className="text-lg sm:text-xl text-gray-600 mb-4 max-w-2xl mx-auto">
               Your customers scan a QR code, filter your menu by their allergies, and see exactly
-              what&apos;s safe to eat. You get an EHO-ready audit trail and customers who come back.
+              what&apos;s safe to eat. You get an EHO-ready audit trail, targeted notifications,
+              and customers who come back.
             </p>
             <p className="text-base text-gray-800 font-medium mb-8 max-w-2xl mx-auto">
               The only UK allergen tool that builds a database of your allergy customers —
@@ -159,6 +168,7 @@ export default function HomePage() {
             <p className="text-center text-sm text-red-600 font-medium mb-12">
               Recent fines for allergen failures have reached £43,000 for independent UK restaurants.
             </p>
+
             <div className="grid sm:grid-cols-3 gap-6">
               <div className="bg-white rounded-xl border border-gray-200 p-6">
                 <div className="text-3xl mb-3">📋</div>
@@ -183,8 +193,8 @@ export default function HomePage() {
                 <h3 className="font-semibold text-gray-900 mb-2">EHO audit trail built in</h3>
                 <p className="text-sm text-gray-600">
                   Weekly verification prompts you to confirm your menu is current. Every
-                  confirmation is timestamped and logged — ready for your next Environmental
-                  Health Officer inspection.
+                  confirmation is timestamped and logged. Download a one-click PDF inspection
+                  report when the EHO visits.
                 </p>
               </div>
             </div>
@@ -224,16 +234,18 @@ export default function HomePage() {
                 <div className="w-12 h-12 rounded-full bg-se-green-50 text-se-green-600 flex items-center justify-center text-lg font-bold mx-auto mb-4">1</div>
                 <h3 className="font-semibold text-gray-900 mb-2">Add your menu</h3>
                 <p className="text-sm text-gray-600">
-                  Enter your dishes, prices, and tag each one with its allergens.
-                  Takes about 15 minutes for a typical menu.
+                  Enter your dishes with photos, prices, and allergens.
+                  Takes about 15 minutes for a typical menu. Upload dish
+                  photos so customers see exactly what they&apos;re ordering.
                 </p>
               </div>
               <div className="text-center">
                 <div className="w-12 h-12 rounded-full bg-se-green-50 text-se-green-600 flex items-center justify-center text-lg font-bold mx-auto mb-4">2</div>
-                <h3 className="font-semibold text-gray-900 mb-2">Print your QR code</h3>
+                <h3 className="font-semibold text-gray-900 mb-2">Print your table talker</h3>
                 <p className="text-sm text-gray-600">
-                  Download your unique QR code and place it on tables, in the window,
-                  or on your paper menus. Customers scan with any phone.
+                  Download a print-ready A5 table talker with your QR code.
+                  Place it on tables, in the window, or on your paper menus.
+                  Customers scan with any phone — no app needed.
                 </p>
               </div>
               <div className="text-center">
@@ -241,7 +253,8 @@ export default function HomePage() {
                 <h3 className="font-semibold text-gray-900 mb-2">Customers filter &amp; return</h3>
                 <p className="text-sm text-gray-600">
                   Customers select their allergies and see safe dishes instantly.
-                  They save their profile and get remembered on every visit.
+                  They save their profile, get remembered on every visit,
+                  and you build a customer database that drives loyalty.
                 </p>
               </div>
             </div>
@@ -260,8 +273,8 @@ export default function HomePage() {
               Every other allergen tool stops at compliance — display the data and move on.
               SafeEat is different. When customers save their allergy profile, you build a database
               of diners with their allergen preferences and marketing opt-ins. You know which
-              allergens are most common. You know who&apos;s coming back. You can reach them
-              when your menu changes.
+              allergens are most common. You know who&apos;s coming back. You can send targeted
+              notifications when your menu changes — reaching the right customers with the right message.
             </p>
             <p className="text-white font-semibold text-lg">
               Compliance tools show allergens. SafeEat builds relationships.
@@ -270,34 +283,166 @@ export default function HomePage() {
         </section>
 
         {/* ================================================================
-            FEATURES — deeper keyword targeting
+            FEATURES — full feature set with all 10
         ================================================================ */}
-        <section className="py-16 bg-gray-50">
+        <section id="features" className="py-16 bg-gray-50">
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-4">
-              Built for allergen compliance and customer retention
+              Everything you need to manage allergens and grow your business
             </h2>
             <p className="text-gray-600 text-center max-w-2xl mx-auto mb-12">
-              Everything a UK food business needs to manage allergens properly and turn
-              allergy-aware diners into loyal regulars.
+              10 features. One subscription. No other UK product offers all of this.
             </p>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {[
-                { icon: '🌾', title: 'All 14 UK regulated allergens', desc: 'Instant filtering covers every allergen required under Food Information Regulations 2014 — fast, accurate, and always up to date.' },
-                { icon: '🔒', title: 'UK GDPR Article 9 compliant', desc: 'Allergen data is special-category health data. We encrypt at rest, hash identifiers, enforce consent, and auto-delete after 18 months.' },
-                { icon: '📊', title: 'Customer insights dashboard', desc: 'See which allergens are most common among your customers, track scan volumes, and identify returning visitors — all anonymised.' },
-                { icon: '🔔', title: 'Marketing notifications', desc: 'Customers who opt in can receive updates when your menu changes. Turn allergen compliance into a direct marketing channel.' },
-                { icon: '🏛️', title: 'FSA & EHO ready', desc: 'Append-only verification log with timestamps gives Environmental Health Officers clear evidence of your allergen management process.' },
-                { icon: '⚡', title: 'No app download required', desc: 'Customers scan, filter, and save — all in their phone browser. No friction, no app store, no barrier to adoption.' },
-              ].map((f) => (
-                <div key={f.title} className="bg-white rounded-xl border border-gray-200 p-5 flex gap-4">
-                  <span className="text-2xl flex-shrink-0">{f.icon}</span>
+
+            {/* Top row — 3 core features */}
+            <div className="grid sm:grid-cols-3 gap-4 mb-4">
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">🌾</span>
+                  <h3 className="font-semibold text-gray-900">14 UK allergens</h3>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Every dish tagged against all 14 regulated allergens. Customers filter your
+                  menu in seconds. Dietary preferences — vegan, vegetarian, gluten-free, halal,
+                  kosher — included as standard.
+                </p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">📸</span>
+                  <h3 className="font-semibold text-gray-900">Dish photos</h3>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Upload photos for every dish. Customers see what they&apos;re ordering alongside
+                  allergen information. Photos display on both the dashboard and the customer-facing
+                  menu.
+                </p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">📊</span>
+                  <h3 className="font-semibold text-gray-900">Analytics dashboard</h3>
+                </div>
+                <p className="text-sm text-gray-600">
+                  30-day scan trends, top allergens among your customers, new profile counts,
+                  and return visitor rates. Know exactly how your allergy-aware customers
+                  engage with your menu.
+                </p>
+              </div>
+            </div>
+
+            {/* Middle row — 4 features */}
+            <div className="grid sm:grid-cols-2 gap-4 mb-4">
+              <div className="bg-white rounded-xl border border-gray-200 p-5 flex gap-4">
+                <span className="text-2xl flex-shrink-0">🔔</span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">Allergen-targeted notifications</h3>
+                  <p className="text-sm text-gray-600">
+                    Send targeted emails to customers filtered by allergen. New gluten-free dishes? Notify
+                    only your gluten-intolerant customers. Turn compliance data into a direct marketing channel.
+                  </p>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-5 flex gap-4">
+                <span className="text-2xl flex-shrink-0">📄</span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">One-click EHO inspection report</h3>
+                  <p className="text-sm text-gray-600">
+                    Generate a professional PDF with your full allergen matrix, dietary declarations,
+                    ingredient records, staff training log, and verification audit trail. One click, ready
+                    for the inspector.
+                  </p>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-5 flex gap-4">
+                <span className="text-2xl flex-shrink-0">📧</span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">Weekly insight emails</h3>
+                  <p className="text-sm text-gray-600">
+                    Every Monday, a branded report lands in your inbox — scan trends, new profiles,
+                    top allergens, and a smart recommendation. Stay on top of your allergen data
+                    without logging in.
+                  </p>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-5 flex gap-4">
+                <span className="text-2xl flex-shrink-0">🔗</span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">&ldquo;Safe for me&rdquo; shareable link</h3>
+                  <p className="text-sm text-gray-600">
+                    Customers share a pre-filtered menu link with friends and family. Perfect for group
+                    bookings — one person sends the link and everyone sees what&apos;s safe before they
+                    arrive.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom row — 3 features */}
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">🖨️</span>
+                  <h3 className="font-semibold text-gray-900">Table talker PDF</h3>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Download a print-ready A5 card with your QR code and SafeEat branding. Slide it
+                  into a table stand or laminate it. Ready to use in seconds.
+                </p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">👨‍🍳</span>
+                  <h3 className="font-semibold text-gray-900">Staff training log</h3>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Record allergen awareness training for every team member with certificate
+                  references. Automatically included in your EHO inspection report.
+                </p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">⭐</span>
+                  <h3 className="font-semibold text-gray-900">Review prompts</h3>
+                </div>
+                <p className="text-sm text-gray-600">
+                  After a customer saves their profile, prompt them to leave a Google or
+                  TripAdvisor review. Turn satisfied allergy customers into public advocates.
+                </p>
+              </div>
+            </div>
+
+            {/* Bonus row — operational features */}
+            <div className="mt-8 bg-white rounded-xl border border-gray-200 p-6">
+              <div className="grid sm:grid-cols-3 gap-6">
+                <div className="flex items-start gap-3">
+                  <span className="text-xl flex-shrink-0">🚫</span>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">{f.title}</h3>
-                    <p className="text-sm text-gray-600">{f.desc}</p>
+                    <h4 className="font-semibold text-gray-900 text-sm mb-1">86&apos;d dish toggle</h4>
+                    <p className="text-xs text-gray-500">
+                      Run out of a dish mid-service? One tap hides it from the customer menu. One tap brings it back tomorrow.
+                    </p>
                   </div>
                 </div>
-              ))}
+                <div className="flex items-start gap-3">
+                  <span className="text-xl flex-shrink-0">🔒</span>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 text-sm mb-1">UK GDPR Article 9</h4>
+                    <p className="text-xs text-gray-500">
+                      Allergen data encrypted at rest, identifiers hashed, consent enforced, auto-deleted after 18 months.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-xl flex-shrink-0">⚡</span>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 text-sm mb-1">No app download</h4>
+                    <p className="text-xs text-gray-500">
+                      Customers scan, filter, and save — all in their phone browser. No friction, no app store.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -317,17 +462,23 @@ export default function HomePage() {
                   <span className="text-4xl font-bold text-gray-900">£29.99</span>
                   <span className="text-gray-500">/month per venue</span>
                 </div>
+                <p className="text-xs text-gray-400 mt-1">Every feature included. Nothing held back.</p>
               </div>
               <div className="space-y-3 mb-8">
                 {[
-                  'Unlimited menu items',
-                  'All 14 UK allergens supported',
-                  'QR code allergen menu for customers',
+                  'Unlimited menu items with photos',
+                  'All 14 UK allergens + dietary filters',
+                  'QR code menu + printable table talker',
                   'Customer allergy profiles with consent',
-                  'Weekly verification & EHO audit trail',
-                  'Customer insights dashboard',
-                  'Marketing notifications to opted-in customers',
-                  'UK GDPR compliant data handling',
+                  'Allergen-targeted email notifications',
+                  'Weekly insight emails every Monday',
+                  'One-click EHO inspection report PDF',
+                  'Staff allergen training log',
+                  'Menu scan analytics dashboard',
+                  '"Safe for me" shareable links',
+                  'Google & TripAdvisor review prompts',
+                  '86\'d dish toggle for daily service',
+                  'UK GDPR Article 9 compliant',
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-2">
                     <span className="text-se-green-600 mt-0.5">✓</span>
