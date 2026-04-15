@@ -46,7 +46,6 @@
         <div class="name">Mick</div>
         <div class="role">Founder at SafeEat</div>
       </div>
-
       <div class="details">
         <a href="tel:07501439406" class="detail-link">
           <span class="icon-circle">
@@ -57,7 +56,6 @@
             <div class="detail-value">07501 439 406</div>
           </div>
         </a>
-
         <a href="mailto:hello@safeeat.co.uk" class="detail-link">
           <span class="icon-circle">
             <svg viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
@@ -67,7 +65,6 @@
             <div class="detail-value">hello@safeeat.co.uk</div>
           </div>
         </a>
-
         <a href="https://safeeat.co.uk" class="detail-link">
           <span class="icon-circle">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20"></path><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
@@ -78,7 +75,6 @@
           </div>
         </a>
       </div>
-
       <div class="actions">
         <div class="sms-label">Send my details via text</div>
         <div class="sms-row">
@@ -86,24 +82,22 @@
           <a id="smsLink" class="sms-btn" href="#" onclick="sendSms(event)">Send</a>
         </div>
       </div>
-
       <div class="qr-section">
         <div class="qr-box">
           <div class="qr-label">Scan to see a live SafeEat demo menu</div>
-          <img class="qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https%3A%2F%2Fsafeeat.co.uk%2Fmenu%2Fdemo&margin=4&format=png" alt="SafeEat demo menu QR code">
-          <div class="qr-url">safeeat.co.uk/menu/demo</div>
+          <img class="qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https%3A%2F%2Fsafeeat.co.uk%2Fmenu%2Fjoes-cafe-39vs&margin=4&format=png" alt="SafeEat demo menu QR code">
+          <div class="qr-url">safeeat.co.uk/menu/joes-cafe-39vs</div>
         </div>
       </div>
     </div>
     <div class="footer">Allergen menu software for UK restaurants</div>
   </div>
-
   <script>
     function sendSms(e) {
       e.preventDefault();
       var num = document.getElementById('phoneInput').value.replace(/\s/g, '');
       if (!num || num.length < 10) { alert('Enter a valid phone number'); return; }
-      var msg = "Hi, it was great chatting! Here are my details: Mick from SafeEat - safeeat.co.uk/mick - See our demo menu: safeeat.co.uk/menu/demo";
+      var msg = "Hi, it was great chatting! Here are my details: Mick from SafeEat - safeeat.co.uk/mick - See our demo menu: safeeat.co.uk/menu/joes-cafe-39vs";
       var ua = navigator.userAgent.toLowerCase();
       var sep = ua.indexOf('iphone') > -1 || ua.indexOf('ipad') > -1 ? '&' : '?';
       window.location.href = 'sms:' + num + sep + 'body=' + encodeURIComponent(msg);
