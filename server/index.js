@@ -539,8 +539,8 @@ app.get('/api/dashboard/me', async (c) => {
   try {
     const venues = await sql`
       SELECT id, name, slug, address, phone, email, show_nutrition,
-        google_review_url, tripadvisor_url, show_review_prompt
-      FROM venues
+  google_review_url, tripadvisor_url, show_review_prompt, subscription_status, clerk_user_id
+FROM venues
       WHERE clerk_user_id = ${clerkUserId}
       LIMIT 1
     `
