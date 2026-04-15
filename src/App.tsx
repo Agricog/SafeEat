@@ -12,6 +12,7 @@ import DashboardCustomers from './pages/DashboardCustomers'
 import DashboardVerification from './pages/DashboardVerification'
 import DashboardSettings from './pages/DashboardSettings'
 import DashboardTraining from './pages/DashboardTraining'
+import DashboardNotifications from './pages/DashboardNotifications'
 import AllergensGuidePage from './pages/AllergensGuidePage'
 import OwensLawGuidePage from './pages/OwensLawGuidePage'
 import EhoGuidePage from './pages/EhoGuidePage'
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="verification" element={<DashboardVerification />} />
           <Route path="settings" element={<DashboardSettings />} />
           <Route path="training" element={<DashboardTraining />} />
+          <Route path="notifications" element={<DashboardNotifications />} />
         </Route>
       </Routes>
     </ClerkProvider>
