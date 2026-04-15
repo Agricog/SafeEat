@@ -31,6 +31,7 @@ import {
   sendCustomerNotification,
 } from './email.js'
 import { generateEhoReport } from './ehoReport.js'
+import { generateTableTalker } from './tableTalker.js'
 // ---------------------------------------------------------------------------
 // Sentry initialisation (must be before app creation)
 // ---------------------------------------------------------------------------
@@ -1065,6 +1066,28 @@ app.get('/api/dashboard/:venueId/eho-report', async (c) => {
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/eho-report', venueId } })
     console.error('EHO report error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
+// DASHBOARD: Generate printable table talker PDF
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/:venueId/table-talker', async (c) => {
+  const venueId = c.get('venueId')
+  try {
+    const venues = await sql`SELECT name, slug FROM venues WHERE id = ${venueId} LIMIT 1`
+    if (venues.length === 0) return c.json({ error: 'Venue not found' }, 404)
+    const menuUrl = `${process.env.CORS_ORIGIN || 'https://safeeat.co.uk'}/menu/${venues[0].slug}`
+    const pdfBytes = await generateTableTalker({ venueName: venues[0].name, menuUrl })
+    return new Response(pdfBytes, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="SafeEat-Table-Talker.pdf"`,
+      },
+    })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/table-talker', venueId } })
+    console.error('Table talker error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
