@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex">
   <title>Mick - SafeEat</title>
-  <link rel="apple-touch-icon" href="/favicon.ico">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Mick - SafeEat">
   <style>
@@ -23,10 +22,15 @@
     .icon-circle svg { width: 18px; height: 18px; color: #16a34a; stroke: #16a34a; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .detail-label { font-size: 12px; color: #9ca3af; }
     .detail-value { font-size: 14px; font-weight: 500; color: #111827; }
-    .actions { padding: 0 24px 12px; }
-    .save-btn { width: 100%; padding: 12px; border-radius: 12px; background: #16a34a; color: #fff; font-size: 14px; font-weight: 500; border: none; cursor: pointer; transition: background 0.15s; }
-    .save-btn:hover { background: #15803d; }
-    .qr-section { padding: 8px 24px 24px; }
+    .actions { padding: 0 24px 16px; }
+    .sms-row { display: flex; gap: 8px; }
+    .sms-input { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid #e5e7eb; font-size: 14px; outline: none; font-family: inherit; }
+    .sms-input:focus { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,0.15); }
+    .sms-input::placeholder { color: #9ca3af; }
+    .sms-btn { padding: 12px 20px; border-radius: 12px; background: #16a34a; color: #fff; font-size: 14px; font-weight: 500; border: none; cursor: pointer; transition: background 0.15s; white-space: nowrap; text-decoration: none; display: flex; align-items: center; }
+    .sms-btn:hover { background: #15803d; }
+    .sms-label { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+    .qr-section { padding: 0 24px 24px; }
     .qr-box { background: #f9fafb; border-radius: 12px; padding: 16px; text-align: center; }
     .qr-label { font-size: 12px; color: #6b7280; margin-bottom: 12px; }
     .qr-img { width: 144px; height: 144px; margin: 0 auto; }
@@ -76,7 +80,11 @@
       </div>
 
       <div class="actions">
-        <button class="save-btn" onclick="saveContact()">Save to contacts</button>
+        <div class="sms-label">Send my details via text</div>
+        <div class="sms-row">
+          <input type="tel" id="phoneInput" class="sms-input" placeholder="Their phone number">
+          <a id="smsLink" class="sms-btn" href="#" onclick="sendSms(event)">Send</a>
+        </div>
       </div>
 
       <div class="qr-section">
@@ -91,28 +99,14 @@
   </div>
 
   <script>
-    function saveContact() {
-      var vcard = [
-        'BEGIN:VCARD',
-        'VERSION:3.0',
-        'FN:Mick - SafeEat',
-        'ORG:SafeEat',
-        'TITLE:Founder',
-        'TEL;TYPE=CELL:07501439406',
-        'EMAIL:hello@safeeat.co.uk',
-        'URL:https://safeeat.co.uk',
-        'NOTE:SafeEat - Allergen menu software for UK restaurants',
-        'END:VCARD'
-      ].join('\n');
-      var blob = new Blob([vcard], { type: 'text/vcard' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = 'Mick-SafeEat.vcf';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+    function sendSms(e) {
+      e.preventDefault();
+      var num = document.getElementById('phoneInput').value.replace(/\s/g, '');
+      if (!num || num.length < 10) { alert('Enter a valid phone number'); return; }
+      var msg = "Hi, it was great chatting! Here are my details: Mick from SafeEat - safeeat.co.uk/mick - See our demo menu: safeeat.co.uk/menu/demo";
+      var ua = navigator.userAgent.toLowerCase();
+      var sep = ua.indexOf('iphone') > -1 || ua.indexOf('ipad') > -1 ? '&' : '?';
+      window.location.href = 'sms:' + num + sep + 'body=' + encodeURIComponent(msg);
     }
   </script>
 </body>
