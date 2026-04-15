@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
+import { buildMaskFromIds } from '../lib/allergens'
 
 export interface SavedProfile {
   allergenIds: string[]
@@ -6,6 +7,7 @@ export interface SavedProfile {
   venueId: string
   savedAt: string
   marketingConsent: boolean
+  email: string
 }
 
 const STORAGE_KEY = 'safeeat_profile'
@@ -39,22 +41,35 @@ function clearPersistedProfile(): void {
 export function useLocalProfile(venueId: string) {
   const [profile, setProfile] = useState<SavedProfile | null>(() => {
     const saved = loadProfile()
-    // Only return if it matches this venue
     if (saved && saved.venueId === venueId) return saved
     return null
   })
 
   const saveProfile = useCallback(
-    (allergenIds: string[], venueName: string, marketingConsent: boolean) => {
+    (allergenIds: string[], venueName: string, marketingConsent: boolean, email: string) => {
       const newProfile: SavedProfile = {
         allergenIds,
         venueName,
         venueId,
         savedAt: new Date().toISOString(),
         marketingConsent,
+        email,
       }
       setProfile(newProfile)
       persistProfile(newProfile)
+
+      // Send to server — fire and forget
+      const mask = buildMaskFromIds(allergenIds)
+      fetch(`/api/menu/${venueId}/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: email || `anon-${Date.now()}`,
+          allergenMask: mask,
+          allergenIds,
+          marketingConsent: marketingConsent && !!email,
+        }),
+      }).catch((err) => console.error('Profile save error:', err))
     },
     [venueId]
   )
