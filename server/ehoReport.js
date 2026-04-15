@@ -15,7 +15,7 @@ const WHITE = rgb(1, 1, 1)
  * Generate EHO-ready allergen compliance PDF report.
  * Returns a Uint8Array of the PDF bytes.
  */
-export async function generateEhoReport({ venue, dishes, verifications }) {
+export async function generateEhoReport({ venue, dishes, verifications, training }) {
   const pdf = await PDFDocument.create()
   const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold)
   const fontRegular = await pdf.embedFont(StandardFonts.Helvetica)
