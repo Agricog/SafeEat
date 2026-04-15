@@ -20,6 +20,7 @@ interface Dish {
   isDairyFree: boolean
   isHalal: boolean
   isKosher: boolean
+  photoUrl: string
   calories: number | null
   proteinG: number | null
   carbsG: number | null
@@ -414,6 +415,9 @@ export default function MenuPage() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
+                              {dish.photoUrl && (
+                                <img src={dish.photoUrl} alt={dish.name} className="w-full h-40 rounded-lg object-cover mb-2" />
+                              )}
                               <h3 className="font-semibold text-gray-900">{dish.name}</h3>
                               {hasActiveFilters && dish.safe && dish.dietaryMatch && (
                                 <span className="text-xs font-medium text-se-green-600 bg-se-green-50 px-1.5 py-0.5 rounded">
