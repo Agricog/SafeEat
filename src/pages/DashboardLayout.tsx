@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { to: '/dashboard/customers', label: 'Customers', icon: '👥', end: false },
   { to: '/dashboard/notifications', label: 'Notifications', icon: '📣', end: false },
   { to: '/dashboard/verification', label: 'Verification', icon: '✅', end: false },
+  { to: '/dashboard/training', label: 'Training', icon: '📋', end: false },
   { to: '/dashboard/settings', label: 'Settings', icon: '⚙️', end: false },
 ]
 export default function DashboardLayout() {
