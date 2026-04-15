@@ -175,6 +175,19 @@ export default function DashboardMenu() {
     }
   }
 
+  const handleToggleActive = async (dish: Dish) => {
+    setError(null)
+    try {
+      const res = await request<{ dish: any }>(
+        `/api/dashboard/${venueId}/dishes/${dish.id}`,
+        { method: 'PUT', body: { active: !dish.active } }
+      )
+      setDishes(dishes.map((d) => d.id === dish.id ? mapDishFromApi(res.dish) : d))
+    } catch (err: any) {
+      setError(err.message)
+    }
+  }
+
   const handleDelete = async (id: string) => {
     setSaving(true)
     setError(null)
@@ -253,7 +266,12 @@ export default function DashboardMenu() {
                     <div className="bg-white rounded-xl border border-gray-200 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900">{dish.name}</h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className={`font-semibold ${dish.active ? 'text-gray-900' : 'text-gray-400 line-through'}`}>{dish.name}</h4>
+                            {!dish.active && (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 text-xs font-medium">86'd</span>
+                            )}
+                          </div>
                           {dish.description && (
                             <p className="text-sm text-gray-500 mt-0.5">{dish.description}</p>
                           )}
@@ -303,6 +321,17 @@ export default function DashboardMenu() {
                           <span className="text-sm font-semibold text-gray-900">
                             {formatPrice(dish.pricePence)}
                           </span>
+                          <button
+                            onClick={() => handleToggleActive(dish)}
+                            className={`p-1.5 rounded-lg text-xs transition-colors ${
+                              dish.active
+                                ? 'text-se-green-600 hover:bg-se-green-50'
+                                : 'text-gray-400 hover:bg-gray-100'
+                            }`}
+                            title={dish.active ? '86 this dish' : 'Bring back'}
+                          >
+                            {dish.active ? '✅' : '⏸️'}
+                          </button>
                           <button
                             onClick={() => setEditingId(dish.id)}
                             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-xs"
