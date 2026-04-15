@@ -32,6 +32,7 @@ import {
 } from './email.js'
 import { generateEhoReport } from './ehoReport.js'
 import { generateTableTalker } from './tableTalker.js'
+import { uploadPhoto, deletePhoto, getKeyFromUrl } from './r2.js'
 // ---------------------------------------------------------------------------
 // Sentry initialisation (must be before app creation)
 // ---------------------------------------------------------------------------
@@ -68,7 +69,7 @@ app.onError((err, c) => {
 // Global middleware
 // ---------------------------------------------------------------------------
 app.use('*', securityHeaders())
-app.use('/api/*', requestSizeLimit(102400))
+app.use('/api/*', requestSizeLimit(5242880))
 app.use('/api/*', cors({
   origin: process.env.CORS_ORIGIN || 'https://safeeat.co.uk',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -352,7 +353,7 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
     const dishes = await sql`
       SELECT id, name, description, price_pence, category, allergen_mask, sort_order,
         is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
-        calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g
+       calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g, photo_url
       FROM dishes
       WHERE venue_id = ${venue.id} AND active = true
       ORDER BY sort_order, created_at
@@ -399,6 +400,7 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
         fibreG: d.fibre_g,
         sugarG: d.sugar_g,
         saltG: d.salt_g,
+        photoUrl: d.photo_url || '',
       })),
       verification: verifications.length > 0
         ? { verifiedAt: verifications[0].verified_at, type: verifications[0].type }
@@ -669,7 +671,7 @@ app.get('/api/dashboard/:venueId/dishes', async (c) => {
       SELECT id, name, description, price_pence, category, allergen_mask, ingredients,
         is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
         calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g,
-        active, sort_order
+        active, sort_order, photo_url
       FROM dishes
       WHERE venue_id = ${venueId}
       ORDER BY sort_order, created_at
@@ -1091,6 +1093,61 @@ app.delete('/api/dashboard/:venueId/training/:entryId', async (c) => {
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'DELETE /api/dashboard/:venueId/training/:entryId', venueId } })
     console.error('Training delete error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
+// DASHBOARD: Upload dish photo
+// ---------------------------------------------------------------------------
+app.post('/api/dashboard/:venueId/dishes/:dishId/photo', async (c) => {
+  const venueId = c.get('venueId')
+  const dishId = sanitiseId(c.req.param('dishId'))
+  if (!dishId) return c.json({ error: 'Invalid dish ID' }, 400)
+  try {
+    // Check dish belongs to venue
+    const dishes = await sql`SELECT id, photo_url FROM dishes WHERE id = ${dishId} AND venue_id = ${venueId} LIMIT 1`
+    if (dishes.length === 0) return c.json({ error: 'Dish not found' }, 404)
+    const contentType = c.req.header('Content-Type') || 'image/jpeg'
+    if (!contentType.startsWith('image/')) return c.json({ error: 'Only image files allowed' }, 400)
+    const body = await c.req.arrayBuffer()
+    if (body.byteLength > 5 * 1024 * 1024) return c.json({ error: 'Image must be under 5MB' }, 400)
+    if (body.byteLength === 0) return c.json({ error: 'Empty file' }, 400)
+    // Delete old photo if exists
+    const oldUrl = dishes[0].photo_url
+    if (oldUrl) {
+      const oldKey = getKeyFromUrl(oldUrl)
+      if (oldKey) deletePhoto(oldKey).catch((err) => console.error('Old photo delete error:', err))
+    }
+    // Upload new photo
+    const ext = contentType.split('/')[1] || 'jpg'
+    const key = `dishes/${venueId}/${dishId}-${Date.now()}.${ext}`
+    const photoUrl = await uploadPhoto(Buffer.from(body), key, contentType)
+    // Update dish record
+    await sql`UPDATE dishes SET photo_url = ${photoUrl} WHERE id = ${dishId} AND venue_id = ${venueId}`
+    return c.json({ photoUrl }, 201)
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/:venueId/dishes/:dishId/photo', venueId, dishId } })
+    console.error('Photo upload error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+app.delete('/api/dashboard/:venueId/dishes/:dishId/photo', async (c) => {
+  const venueId = c.get('venueId')
+  const dishId = sanitiseId(c.req.param('dishId'))
+  if (!dishId) return c.json({ error: 'Invalid dish ID' }, 400)
+  try {
+    const dishes = await sql`SELECT photo_url FROM dishes WHERE id = ${dishId} AND venue_id = ${venueId} LIMIT 1`
+    if (dishes.length === 0) return c.json({ error: 'Dish not found' }, 404)
+    const url = dishes[0].photo_url
+    if (url) {
+      const key = getKeyFromUrl(url)
+      if (key) await deletePhoto(key)
+    }
+    await sql`UPDATE dishes SET photo_url = '' WHERE id = ${dishId} AND venue_id = ${venueId}`
+    return c.json({ deleted: true })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'DELETE /api/dashboard/:venueId/dishes/:dishId/photo', venueId, dishId } })
+    console.error('Photo delete error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
