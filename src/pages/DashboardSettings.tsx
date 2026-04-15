@@ -439,6 +439,24 @@ export default function DashboardSettings() {
                 className="w-full px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors">
                 Copy menu link
               </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/dashboard/${venueId}/table-talker`, {
+                      headers: { 'Authorization': `Bearer ${await (window as any).Clerk?.session?.getToken()}` },
+                    })
+                    if (!res.ok) throw new Error('Download failed')
+                    const blob = await res.blob()
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url; a.download = 'SafeEat-Table-Talker.pdf'
+                    document.body.appendChild(a); a.click()
+                    document.body.removeChild(a); URL.revokeObjectURL(url)
+                  } catch { setError('Failed to download table talker') }
+                }}
+                className="w-full px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors">
+                Download table talker (A5 PDF)
+              </button>
             </div>
           </div>
 
