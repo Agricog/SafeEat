@@ -139,7 +139,7 @@ export default function MenuPage() {
     saveProfile(selectedAllergens, venue.name, marketingConsent, email)
     setShowSavePrompt(false)
     setSavedConfirmation(true)
-    setTimeout(() => setSavedConfirmation(false), 3000)
+    setTimeout(() => setSavedConfirmation(false), 30000)
   }
 
   const handleDismiss = () => {
