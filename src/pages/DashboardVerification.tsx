@@ -16,7 +16,7 @@ function formatTime(iso: string): string {
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
 function daysSince(iso: string): number {
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000))
 }
 export default function DashboardVerification() {
   const { request } = useApi()
