@@ -5,6 +5,7 @@ import MenuPage from './pages/MenuPage'
 import PrivacyPage from './pages/PrivacyPage'
 import TermsPage from './pages/TermsPage'
 import ContactPage from './pages/ContactPage'
+import BusinessCardPage from './pages/BusinessCardPage'
 import DashboardLayout from './pages/DashboardLayout'
 import DashboardOverview from './pages/DashboardOverview'
 import DashboardMenu from './pages/DashboardMenu'
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/mick" element={<BusinessCardPage />} />
 
         {/* Guides */}
         <Route path="/guides/14-allergens-uk" element={<AllergensGuidePage />} />
