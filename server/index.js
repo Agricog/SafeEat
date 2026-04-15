@@ -1037,25 +1037,86 @@ app.get('/api/dashboard/:venueId/notifications', async (c) => {
   }
 })
 // ---------------------------------------------------------------------------
+// DASHBOARD: Staff training log
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/:venueId/training', async (c) => {
+  const venueId = c.get('venueId')
+  try {
+    const training = await sql`
+      SELECT id, staff_name, training_type, certificate_ref, trained_at, recorded_at
+      FROM staff_training_log
+      WHERE venue_id = ${venueId}
+      ORDER BY trained_at DESC
+      LIMIT 100
+    `
+    return c.json({ training })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/training', venueId } })
+    console.error('Training fetch error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+app.post('/api/dashboard/:venueId/training', async (c) => {
+  const venueId = c.get('venueId')
+  let body
+  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON body' }, 400) }
+  const staffName = sanitiseString(body.staffName, 200)
+  const trainingType = sanitiseString(body.trainingType, 50) || 'allergen_awareness'
+  const certificateRef = sanitiseString(body.certificateRef, 200)
+  const trainedAt = body.trainedAt || new Date().toISOString()
+  if (!staffName) return c.json({ error: 'Staff name is required' }, 400)
+  try {
+    const entries = await sql`
+      INSERT INTO staff_training_log (venue_id, staff_name, training_type, certificate_ref, trained_at)
+      VALUES (${venueId}, ${staffName}, ${trainingType}, ${certificateRef}, ${trainedAt})
+      RETURNING id, staff_name, training_type, certificate_ref, trained_at, recorded_at
+    `
+    return c.json({ entry: entries[0] }, 201)
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/:venueId/training', venueId } })
+    console.error('Training create error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+app.delete('/api/dashboard/:venueId/training/:entryId', async (c) => {
+  const venueId = c.get('venueId')
+  const entryId = parseInt(c.req.param('entryId'))
+  if (isNaN(entryId)) return c.json({ error: 'Invalid entry ID' }, 400)
+  try {
+    const result = await sql`
+      DELETE FROM staff_training_log WHERE id = ${entryId} AND venue_id = ${venueId} RETURNING id
+    `
+    if (result.length === 0) return c.json({ error: 'Entry not found' }, 404)
+    return c.json({ deleted: true })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'DELETE /api/dashboard/:venueId/training/:entryId', venueId } })
+    console.error('Training delete error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
 // DASHBOARD: Generate EHO inspection report PDF
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/eho-report', async (c) => {
   const venueId = c.get('venueId')
   try {
-    const [venues, dishes, verifications] = await Promise.all([
+    const [venues, dishes, verifications, training] = await Promise.all([
       sql`SELECT id, name, slug, address, phone, email FROM venues WHERE id = ${venueId} LIMIT 1`,
       sql`SELECT id, name, description, price_pence, category, allergen_mask, ingredients,
         is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
         active, sort_order
         FROM dishes WHERE venue_id = ${venueId} ORDER BY sort_order, created_at`,
       sql`SELECT id, type, note, verified_at FROM verification_log
-        WHERE venue_id = ${venueId} ORDER BY verified_at DESC LIMIT 50`,
+        Where venue_id = ${venueId} ORDER BY verified_at DESC LIMIT 50`,
+      sql`SELECT staff_name, training_type, certificate_ref, trained_at FROM staff_training_log
+        WHERE venue_id = ${venueId} ORDER BY trained_at DESC LIMIT 50`,
     ])
     if (venues.length === 0) return c.json({ error: 'Venue not found' }, 404)
     const pdfBytes = await generateEhoReport({
       venue: venues[0],
       dishes,
       verifications,
+      training,
     })
     return new Response(pdfBytes, {
       headers: {
