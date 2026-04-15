@@ -1438,6 +1438,7 @@ app.post('/api/dashboard/:venueId/billing/portal', async (c) => {
 // STATIC FILES (SPA fallback)
 // ===========================================================================
 app.get('/mick', serveStatic({ root: './dist', path: 'mick.html' }))
+app.get('/demo', serveStatic({ root: './dist', path: 'demo.html' }))
 app.use('/*', serveStatic({ root: './dist' }))
 app.get('/*', serveStatic({ root: './dist', path: 'index.html' }))
 // ===========================================================================
