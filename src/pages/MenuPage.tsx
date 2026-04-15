@@ -134,9 +134,9 @@ export default function MenuPage() {
     }
   }, [showSelector, selectorWasOpen, selectedAllergens.length, profile, promptDismissed, savedConfirmation])
 
-  const handleSave = (marketingConsent: boolean) => {
+  const handleSave = (marketingConsent: boolean, email: string) => {
     if (!venue) return
-    saveProfile(selectedAllergens, venue.name, marketingConsent)
+    saveProfile(selectedAllergens, venue.name, marketingConsent, email)
     setShowSavePrompt(false)
     setSavedConfirmation(true)
     setTimeout(() => setSavedConfirmation(false), 3000)
