@@ -283,6 +283,47 @@ export async function generateEhoReport({ venue, dishes, verifications }) {
     }
   }
 
+  // Staff training log
+  y -= 12
+  if (y < margin + 80) {
+    page = pdf.addPage([pageWidth, pageHeight])
+    y = pageHeight - margin
+  }
+  page.drawText('Staff Training Records', { x: margin, y, size: 11, font: fontBold, color: DARK })
+  y -= 14
+
+  if (!training || training.length === 0) {
+    page.drawText('No training records logged.', { x: margin, y, size: 9, font: fontRegular, color: GREY })
+    y -= 20
+  } else {
+    const typeLabels = {
+      allergen_awareness: 'Allergen Awareness',
+      food_safety_l2: 'Food Safety L2',
+      food_safety_l3: 'Food Safety L3',
+      anaphylaxis: 'Anaphylaxis',
+      other: 'Other',
+    }
+    page.drawRectangle({ x: margin, y: y - 14, width: contentWidth, height: 14, color: LIGHT_GREY })
+    page.drawText('Name', { x: margin + 4, y: y - 11, size: 7.5, font: fontBold, color: DARK })
+    page.drawText('Training', { x: margin + 180, y: y - 11, size: 7.5, font: fontBold, color: DARK })
+    page.drawText('Certificate', { x: margin + 380, y: y - 11, size: 7.5, font: fontBold, color: DARK })
+    page.drawText('Date', { x: margin + 560, y: y - 11, size: 7.5, font: fontBold, color: DARK })
+    y -= 14
+    for (const t of training) {
+      if (y < margin + 20) {
+        page = pdf.addPage([pageWidth, pageHeight])
+        y = pageHeight - margin
+      }
+      const tDate = new Date(t.trained_at)
+      const dateStr = tDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      page.drawText(t.staff_name || '-', { x: margin + 4, y: y - 11, size: 7.5, font: fontRegular, color: DARK })
+      page.drawText(typeLabels[t.training_type] || t.training_type, { x: margin + 180, y: y - 11, size: 7.5, font: fontRegular, color: DARK })
+      page.drawText(t.certificate_ref || '-', { x: margin + 380, y: y - 11, size: 7.5, font: fontRegular, color: GREY })
+      page.drawText(dateStr, { x: margin + 560, y: y - 11, size: 7.5, font: fontRegular, color: DARK })
+      y -= 14
+    }
+  }
+
   // Footer on last page
   y -= 20
   if (y > margin) {
