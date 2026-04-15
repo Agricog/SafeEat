@@ -5,25 +5,18 @@
 export function securityHeaders() {
   return async (c, next) => {
     await next()
-
     // Prevent MIME type sniffing
     c.header('X-Content-Type-Options', 'nosniff')
-
     // Prevent clickjacking
     c.header('X-Frame-Options', 'DENY')
-
     // XSS protection (legacy browsers)
     c.header('X-XSS-Protection', '1; mode=block')
-
     // Referrer policy
     c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
-
     // Permissions policy — disable unnecessary browser features
     c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
-
     // HSTS — enforce HTTPS (1 year, include subdomains)
     c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-
     // Content Security Policy
     c.header('Content-Security-Policy', [
       "default-src 'self'",
@@ -31,8 +24,8 @@ export function securityHeaders() {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://api.qrserver.com https://img.clerk.com https://*.clerk.com https://pub-3d41d748af7d4a25b8aa2bfc3ba25ba8.r2.dev",
       "font-src 'self' https://*.clerk.com",
-      "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://api.clerk.com https://clerk-telemetry.com",
-      "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com",
+      "connect-src 'self' https://clerk.safeeat.co.uk https://*.clerk.accounts.dev https://*.clerk.com https://api.clerk.com https://clerk-telemetry.com",
+      "frame-src 'self' https://clerk.safeeat.co.uk https://*.clerk.accounts.dev https://*.clerk.com",
       "worker-src 'self' blob:",
       "base-uri 'self'",
       "form-action 'self'",
