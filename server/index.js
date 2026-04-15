@@ -51,7 +51,6 @@ Sentry.init({
   },
 })
 const app = new Hono()
-console.log('ENC_KEY:', JSON.stringify(process.env.ALLERGEN_ENCRYPTION_KEY || 'safeeat-default-key-change-me'))
 // ---------------------------------------------------------------------------
 // Global error handler — catches unhandled errors and sends to Sentry
 // ---------------------------------------------------------------------------
