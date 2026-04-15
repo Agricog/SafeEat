@@ -4,6 +4,9 @@ import { UserButton } from '@clerk/clerk-react'
 import { useApi } from '../lib/api'
 import { VenueProvider, type VenueContext } from '../lib/VenueContext'
 import DashboardOnboarding from './DashboardOnboarding'
+
+const ADMIN_USER_ID = 'user_3COitKCjwIaPKHCW0yDyYfHIzMh'
+
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Overview', icon: '📊', end: true },
   { to: '/dashboard/menu', label: 'Menu', icon: '🍽️', end: false },
@@ -13,24 +16,39 @@ const NAV_ITEMS = [
   { to: '/dashboard/training', label: 'Training', icon: '📋', end: false },
   { to: '/dashboard/settings', label: 'Settings', icon: '⚙️', end: false },
 ]
+
 export default function DashboardLayout() {
   const { request } = useApi()
   const [venue, setVenue] = useState<VenueContext | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
+  const [needsPayment, setNeedsPayment] = useState(false)
+  const [venueId, setVenueId] = useState<string | null>(null)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
+
   const fetchVenue = useCallback(() => {
     setLoading(true)
     setError(null)
     setNeedsOnboarding(false)
-    request<{ venue: { id: string; name: string; slug: string; address: string } }>('/api/dashboard/me')
+    setNeedsPayment(false)
+    request<{ venue: { id: string; name: string; slug: string; address: string; subscription_status: string; clerk_user_id: string } }>('/api/dashboard/me')
       .then((data) => {
-        setVenue({
-          venueId: data.venue.id,
-          venueName: data.venue.name,
-          venueSlug: data.venue.slug,
-          venueAddress: data.venue.address,
-        })
+        const v = data.venue
+        const isAdmin = v.clerk_user_id === ADMIN_USER_ID
+        const isPaid = ['active', 'trialing'].includes(v.subscription_status)
+
+        if (!isAdmin && !isPaid) {
+          setVenueId(v.id)
+          setNeedsPayment(true)
+        } else {
+          setVenue({
+            venueId: v.id,
+            venueName: v.name,
+            venueSlug: v.slug,
+            venueAddress: v.address,
+          })
+        }
       })
       .catch((err) => {
         if (err.message === 'No venue linked to this account' || err.status === 404) {
@@ -43,9 +61,25 @@ export default function DashboardLayout() {
         setLoading(false)
       })
   }, [request])
+
   useEffect(() => {
     fetchVenue()
   }, [fetchVenue])
+
+  const handleCheckout = async () => {
+    if (!venueId) return
+    setCheckoutLoading(true)
+    try {
+      const res = await request<{ url: string }>(`/api/dashboard/${venueId}/billing/checkout`, {
+        method: 'POST',
+      })
+      window.location.href = res.url
+    } catch (err: any) {
+      setError(err.message || 'Could not start checkout')
+      setCheckoutLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -56,9 +90,38 @@ export default function DashboardLayout() {
       </div>
     )
   }
+
   if (needsOnboarding) {
     return <DashboardOnboarding onComplete={fetchVenue} />
   }
+
+  if (needsPayment) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md text-center">
+          <div className="text-4xl mb-4">🍽️</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Subscribe to get started</h1>
+          <p className="text-sm text-gray-500 mb-6">
+            SafeEat is £29.99/month per venue. All features included, no contracts, cancel any time.
+          </p>
+          {error && (
+            <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          <button
+            onClick={handleCheckout}
+            disabled={checkoutLoading}
+            className="w-full py-3 rounded-lg bg-se-green-600 text-white font-semibold hover:bg-se-green-700 transition-colors disabled:opacity-50"
+          >
+            {checkoutLoading ? 'Redirecting to checkout…' : 'Subscribe — £29.99/month'}
+          </button>
+          <p className="text-xs text-gray-400 mt-3">Powered by Stripe. Cancel any time.</p>
+        </div>
+      </div>
+    )
+  }
+
   if (error || !venue) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -78,6 +141,7 @@ export default function DashboardLayout() {
       </div>
     )
   }
+
   return (
     <VenueProvider value={venue}>
       <div className="min-h-screen bg-gray-50">
