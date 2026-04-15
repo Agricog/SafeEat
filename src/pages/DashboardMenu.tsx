@@ -14,6 +14,7 @@ interface Dish {
   ingredients: string
   category: string
   active: boolean
+  photoUrl: string
   isVegan: boolean
   isVegetarian: boolean
   isGlutenFree: boolean
@@ -67,6 +68,7 @@ function mapDishFromApi(d: any): Dish {
     ingredients: d.ingredients || '',
     category: d.category,
     active: d.active,
+    photoUrl: d.photo_url || '',
     isVegan: d.is_vegan || false,
     isVegetarian: d.is_vegetarian || false,
     isGlutenFree: d.is_gluten_free || false,
@@ -112,8 +114,8 @@ const DIETARY_BADGES = [
   { key: 'isVegetarian', label: 'Vegetarian', icon: '🥕' },
   { key: 'isGlutenFree', label: 'GF', icon: '🌾' },
   { key: 'isDairyFree', label: 'DF', icon: '🥛' },
-  { key: 'isHalal', label: 'Halal', icon: '☪️' },
-  { key: 'isKosher', label: 'Kosher', icon: '✡️' },
+  { key: 'isHalal', label: 'Halal' },
+  { key: 'isKosher', label: 'Kosher' },
 ] as const
 
 export default function DashboardMenu() {
@@ -173,6 +175,36 @@ export default function DashboardMenu() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handlePhotoUpload = async (dish: Dish, file: File) => {
+    if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5MB'); return }
+    if (!file.type.startsWith('image/')) { setError('Only image files allowed'); return }
+    setError(null)
+    try {
+      const token = await (window as any).Clerk?.session?.getToken()
+      const res = await fetch(`/api/dashboard/${venueId}/dishes/${dish.id}/photo`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': file.type },
+        body: file,
+      })
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Upload failed') }
+      const data = await res.json()
+      setDishes(dishes.map((d) => d.id === dish.id ? { ...d, photoUrl: data.photoUrl } : d))
+    } catch (err: any) { setError(err.message || 'Photo upload failed') }
+  }
+
+  const handlePhotoDelete = async (dish: Dish) => {
+    setError(null)
+    try {
+      const token = await (window as any).Clerk?.session?.getToken()
+      const res = await fetch(`/api/dashboard/${venueId}/dishes/${dish.id}/photo`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Delete failed') }
+      setDishes(dishes.map((d) => d.id === dish.id ? { ...d, photoUrl: '' } : d))
+    } catch (err: any) { setError(err.message || 'Photo delete failed') }
   }
 
   const handleToggleActive = async (dish: Dish) => {
@@ -241,7 +273,7 @@ export default function DashboardMenu() {
           <DishForm
             onSubmit={handleAdd}
             onCancel={() => setShowAddForm(false)}
-            submitLabel={saving ? 'Saving…' : 'Add dish'}
+            submitLabel={saving ? 'Saving...' : 'Add dish'}
           />
         </div>
       )}
@@ -260,12 +292,15 @@ export default function DashboardMenu() {
                       initial={dishToFormData(dish)}
                       onSubmit={handleEdit}
                       onCancel={() => setEditingId(null)}
-                      submitLabel={saving ? 'Saving…' : 'Save changes'}
+                      submitLabel={saving ? 'Saving...' : 'Save changes'}
                     />
                   ) : (
                     <div className="bg-white rounded-xl border border-gray-200 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
+                          {dish.photoUrl && (
+                            <img src={dish.photoUrl} alt={dish.name} className="w-16 h-16 rounded-lg object-cover mb-2" />
+                          )}
                           <div className="flex items-center gap-2">
                             <h4 className={`font-semibold ${dish.active ? 'text-gray-900' : 'text-gray-400 line-through'}`}>{dish.name}</h4>
                             {!dish.active && (
@@ -287,7 +322,7 @@ export default function DashboardMenu() {
                               {DIETARY_BADGES.map((b) =>
                                 dish[b.key as keyof Dish] ? (
                                   <span key={b.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-se-green-50 border border-se-green-200 text-xs text-se-green-700 font-medium">
-                                    <span>{b.icon}</span>
+                                    {'icon' in b && <span>{b.icon}</span>}
                                     <span>{b.label}</span>
                                   </span>
                                 ) : null
@@ -304,16 +339,16 @@ export default function DashboardMenu() {
                             </div>
                           )}
                           {dish.allergenMask === 0 && (
-                            <p className="text-xs text-se-green-600 mt-2">No allergens — safe for everyone</p>
+                            <p className="text-xs text-se-green-600 mt-2">No allergens - safe for everyone</p>
                           )}
 
                           {/* Nutrition summary */}
                           {dish.calories != null && (
                             <p className="text-xs text-gray-400 mt-1">
                               {dish.calories} kcal
-                              {dish.proteinG != null && ` · ${dish.proteinG}g protein`}
-                              {dish.carbsG != null && ` · ${dish.carbsG}g carbs`}
-                              {dish.fatG != null && ` · ${dish.fatG}g fat`}
+                              {dish.proteinG != null && ` - ${dish.proteinG}g protein`}
+                              {dish.carbsG != null && ` - ${dish.carbsG}g carbs`}
+                              {dish.fatG != null && ` - ${dish.fatG}g fat`}
                             </p>
                           )}
                         </div>
@@ -321,6 +356,15 @@ export default function DashboardMenu() {
                           <span className="text-sm font-semibold text-gray-900">
                             {formatPrice(dish.pricePence)}
                           </span>
+                          <label className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-xs cursor-pointer" title="Upload photo">
+                            📷
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(dish, f); e.target.value = '' }} />
+                          </label>
+                          {dish.photoUrl && (
+                            <button onClick={() => handlePhotoDelete(dish)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors text-xs" title="Remove photo">
+                              x
+                            </button>
+                          )}
                           <button
                             onClick={() => handleToggleActive(dish)}
                             className={`p-1.5 rounded-lg text-xs transition-colors ${
@@ -345,7 +389,7 @@ export default function DashboardMenu() {
                                 onClick={() => handleDelete(dish.id)}
                                 className="px-2 py-1 rounded text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
                               >
-                                {saving ? '…' : 'Delete'}
+                                {saving ? '...' : 'Delete'}
                               </button>
                               <button
                                 onClick={() => setDeleteConfirm(null)}
