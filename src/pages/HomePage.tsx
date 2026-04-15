@@ -7,20 +7,20 @@ const FAQ_ITEMS = [
     a: 'Under the Food Information Regulations 2014, UK food businesses must declare these 14 allergens: celery, cereals containing gluten, crustaceans, eggs, fish, lupin, milk, molluscs, mustard, nuts (tree nuts), peanuts, sesame, soybeans, and sulphur dioxide (sulphites above 10mg/kg). SafeEat covers all 14 so customers can instantly see which dishes are safe for them.',
   },
   {
-    q: 'How does SafeEat help with Natasha\'s Law compliance?',
-    a: 'Natasha\'s Law (the UK Allergen Labelling Regulations 2021) requires prepacked for direct sale (PPDS) food to carry a full ingredients list with the 14 allergens emphasised. SafeEat extends this to your dine-in menu with a digital allergen display that customers access via QR code. Our weekly verification flow and timestamped audit trail give you documented proof of allergen diligence for EHO inspections.',
+    q: "How does SafeEat help with Natasha's Law compliance?",
+    a: "Natasha's Law (the UK Allergen Labelling Regulations 2021) requires prepacked for direct sale (PPDS) food to carry a full ingredients list with the 14 allergens emphasised. SafeEat extends this to your dine-in menu with a digital allergen display that customers access via QR code. Our weekly verification flow and timestamped audit trail give you documented proof of allergen diligence for EHO inspections.",
   },
   {
-    q: 'What is Owen\'s Law and how does it affect my restaurant?',
-    a: 'Owen\'s Law calls for mandatory written allergen information at the point of ordering in UK restaurants, without the customer needing to ask. The FSA published voluntary best-practice guidance in March 2025 and is evaluating uptake in spring 2026 — if compliance is poor, mandatory legislation follows. SafeEat gives you written allergen information via QR code now, putting you ahead of the likely regulation.',
+    q: "What is Owen's Law and how does it affect my restaurant?",
+    a: "Owen's Law calls for mandatory written allergen information at the point of ordering in UK restaurants, without the customer needing to ask. The FSA published voluntary best-practice guidance in March 2025 and is evaluating uptake in spring 2026 \u2014 if compliance is poor, mandatory legislation follows. SafeEat gives you written allergen information via QR code now, putting you ahead of the likely regulation.",
   },
   {
     q: 'How do customers use SafeEat?',
-    a: 'Customers scan the QR code on your table, window, or menu. They select their allergens from a simple visual picker, and your menu instantly filters to show only safe dishes. They can save their allergy profile so it remembers them on future visits — turning a one-time scan into a returning customer.',
+    a: "Customers scan the QR code on your table, window, or menu. They select their allergens from a simple visual picker, and your menu instantly filters to show only safe dishes. They can save their allergy profile so it remembers them on future visits \u2014 turning a one-time scan into a returning customer.",
   },
   {
     q: 'Do I need any special hardware or equipment?',
-    a: 'No. SafeEat is entirely web-based. Your customers scan a QR code with their phone camera — no app download required. You manage your menu and allergens from any browser. All you need is the printed QR code or table talker, which you can download from your dashboard.',
+    a: 'No. SafeEat is entirely web-based. Your customers scan a QR code with their phone camera \u2014 no app download required. You manage your menu and allergens from any browser. All you need is the printed QR code or table talker, which you can download from your dashboard.',
   },
   {
     q: 'What happens during an EHO inspection?',
@@ -32,19 +32,19 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Can I send notifications to my allergy customers?',
-    a: 'Yes. Customers who opt into marketing can receive targeted notifications when your menu changes. You can filter by specific allergens — for example, notify only gluten-intolerant customers when you add new gluten-free dishes. This turns allergen compliance into a direct retention channel.',
+    a: "Yes. Customers who opt into marketing can receive targeted notifications when your menu changes. You can filter by specific allergens \u2014 for example, notify only gluten-intolerant customers when you add new gluten-free dishes. This turns allergen compliance into a direct retention channel.",
   },
   {
     q: 'Can customers share a pre-filtered menu link?',
-    a: 'Yes. When a customer has their allergens selected, they can share a link that pre-filters your menu for the same allergies. This is especially useful for group bookings — one person with a nut allergy can send the filtered menu to the group so everyone can see what the restaurant offers safely.',
+    a: "Yes. When a customer has their allergens selected, they can share a link that pre-filters your menu for the same allergies. This is especially useful for group bookings \u2014 one person with a nut allergy can send the filtered menu to the group so everyone can see what the restaurant offers safely.",
   },
   {
-    q: 'Can I try SafeEat before paying?',
-    a: 'Yes. Every new venue gets a free trial with full access to all features — allergen menus, customer profiles, verification audit trail, analytics, notifications, and QR codes. No credit card required to start.',
+    q: 'Is there a contract or commitment?',
+    a: "No. SafeEat is \u00a329.99 per month with no setup fees and no long-term contracts. You can cancel any time from your dashboard. If you cancel, your subscription runs until the end of the billing period.",
   },
   {
     q: 'How much does SafeEat cost?',
-    a: 'SafeEat Starter is £29.99 per month per venue. This includes every feature — unlimited menu items, dish photos, customer allergen profiles, EHO inspection reports, analytics dashboard, targeted notifications, staff training log, printable table talkers, and more. No setup fees, no long-term contracts — cancel any time.',
+    a: "SafeEat Starter is \u00a329.99 per month per venue. This includes every feature \u2014 unlimited menu items, dish photos, customer allergen profiles, EHO inspection reports, analytics dashboard, targeted notifications, staff training log, printable table talkers, and more. No setup fees, no long-term contracts \u2014 cancel any time.",
   },
 ]
 
@@ -68,9 +68,6 @@ export default function HomePage() {
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>
       <div className="min-h-screen bg-white">
-        {/* ================================================================
-            NAV
-        ================================================================ */}
         <nav className="border-b border-gray-100">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -91,15 +88,12 @@ export default function HomePage() {
                 to="/dashboard"
                 className="px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors"
               >
-                Start free trial
+                Get started
               </Link>
             </div>
           </div>
         </nav>
 
-        {/* ================================================================
-            HERO — H1 targets "allergen menu software UK restaurants"
-        ================================================================ */}
         <header className="py-16 sm:py-24">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-se-green-50 text-se-green-700 text-xs font-medium mb-6">
@@ -124,7 +118,7 @@ export default function HomePage() {
                 to="/dashboard"
                 className="w-full sm:w-auto px-6 py-3 rounded-lg bg-se-green-600 text-white font-medium hover:bg-se-green-700 transition-colors text-center"
               >
-                Start your free trial
+                Get started
               </Link>
               <a
                 href="/menu/demo"
@@ -133,13 +127,10 @@ export default function HomePage() {
                 See a live demo menu
               </a>
             </div>
-            <p className="text-xs text-gray-400 mt-4">No credit card required. Cancel any time.</p>
+            <p className="text-xs text-gray-400 mt-4">£29.99/month. No contracts. Cancel any time.</p>
           </div>
         </header>
 
-        {/* ================================================================
-            TRUST BAR
-        ================================================================ */}
         <div className="border-y border-gray-100 bg-gray-50">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
             <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-xs text-gray-500">
@@ -152,9 +143,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ================================================================
-            PROBLEM / SOLUTION
-        ================================================================ */}
         <section className="py-16">
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-4">
@@ -168,7 +156,6 @@ export default function HomePage() {
             <p className="text-center text-sm text-red-600 font-medium mb-12">
               Recent fines for allergen failures have reached £43,000 for independent UK restaurants.
             </p>
-
             <div className="grid sm:grid-cols-3 gap-6">
               <div className="bg-white rounded-xl border border-gray-200 p-6">
                 <div className="text-3xl mb-3">📋</div>
@@ -201,9 +188,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ================================================================
-            OWEN'S LAW CALLOUT
-        ================================================================ */}
         <section className="py-12 bg-amber-50 border-y border-amber-200">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">
@@ -221,9 +205,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ================================================================
-            HOW IT WORKS
-        ================================================================ */}
         <section className="py-16">
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-12">
@@ -261,9 +242,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ================================================================
-            USP — unique differentiator section
-        ================================================================ */}
         <section className="py-16 bg-se-green-600">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
@@ -282,9 +260,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ================================================================
-            FEATURES — full feature set with all 10
-        ================================================================ */}
         <section id="features" className="py-16 bg-gray-50">
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-4">
@@ -293,8 +268,6 @@ export default function HomePage() {
             <p className="text-gray-600 text-center max-w-2xl mx-auto mb-12">
               10 features. One subscription. No other UK product offers all of this.
             </p>
-
-            {/* Top row — 3 core features */}
             <div className="grid sm:grid-cols-3 gap-4 mb-4">
               <div className="bg-white rounded-xl border border-gray-200 p-5">
                 <div className="flex items-center gap-3 mb-3">
@@ -330,8 +303,6 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-
-            {/* Middle row — 4 features */}
             <div className="grid sm:grid-cols-2 gap-4 mb-4">
               <div className="bg-white rounded-xl border border-gray-200 p-5 flex gap-4">
                 <span className="text-2xl flex-shrink-0">🔔</span>
@@ -377,8 +348,6 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-
-            {/* Bottom row — 3 features */}
             <div className="grid sm:grid-cols-3 gap-4">
               <div className="bg-white rounded-xl border border-gray-200 p-5">
                 <div className="flex items-center gap-3 mb-3">
@@ -411,8 +380,6 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-
-            {/* Bonus row — operational features */}
             <div className="mt-8 bg-white rounded-xl border border-gray-200 p-6">
               <div className="grid sm:grid-cols-3 gap-6">
                 <div className="flex items-start gap-3">
@@ -447,9 +414,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ================================================================
-            PRICING
-        ================================================================ */}
         <section id="pricing" className="py-16">
           <div className="max-w-lg mx-auto px-4 sm:px-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-12">
@@ -477,7 +441,7 @@ export default function HomePage() {
                   'Menu scan analytics dashboard',
                   '"Safe for me" shareable links',
                   'Google & TripAdvisor review prompts',
-                  '86\'d dish toggle for daily service',
+                  "86'd dish toggle for daily service",
                   'UK GDPR Article 9 compliant',
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-2">
@@ -490,18 +454,15 @@ export default function HomePage() {
                 to="/dashboard"
                 className="block w-full px-6 py-3 rounded-lg bg-se-green-600 text-white font-medium hover:bg-se-green-700 transition-colors text-center"
               >
-                Start your free trial
+                Get started
               </Link>
               <p className="text-xs text-gray-400 text-center mt-3">
-                No credit card required. No setup fees. Cancel any time.
+                No setup fees. No contracts. Cancel any time.
               </p>
             </div>
           </div>
         </section>
 
-        {/* ================================================================
-            FAQ — targets long-tail keywords, generates FAQPage rich snippets
-        ================================================================ */}
         <section id="faq" className="py-16 bg-gray-50">
           <div className="max-w-3xl mx-auto px-4 sm:px-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-12">
@@ -526,9 +487,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ================================================================
-            FINAL CTA
-        ================================================================ */}
         <section className="py-16">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
@@ -542,14 +500,11 @@ export default function HomePage() {
               to="/dashboard"
               className="inline-block px-8 py-3 rounded-lg bg-se-green-600 text-white font-medium hover:bg-se-green-700 transition-colors"
             >
-              Start your free trial
+              Get started
             </Link>
           </div>
         </section>
 
-        {/* ================================================================
-            FOOTER
-        ================================================================ */}
         <footer className="border-t border-gray-200 py-10">
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
