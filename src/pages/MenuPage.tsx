@@ -391,6 +391,14 @@ export default function MenuPage() {
       )}
 
       <main className="max-w-lg mx-auto px-4 py-6">
+        {/* Emergency notice */}
+        <div className="mb-6 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
+          <p className="text-sm font-semibold text-red-800 mb-0.5">In an allergic emergency, call 999</p>
+          <p className="text-xs text-red-700">
+            Always tell your server about your allergies before ordering. This menu is a guide — please confirm with staff.
+          </p>
+        </div>
+
         {dishes.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500">No dishes on the menu yet.</p>
