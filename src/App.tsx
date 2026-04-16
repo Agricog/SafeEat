@@ -86,7 +86,6 @@ export default function App() {
           <Route path="notifications" element={<DashboardNotifications />} />
           <Route path="compliance/matrix" element={<ComplianceMatrix />} />
         </Route>
-        </Route>
       </Routes>
     </ClerkProvider>
   )
