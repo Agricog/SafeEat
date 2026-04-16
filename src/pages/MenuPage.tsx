@@ -383,7 +383,7 @@ export default function MenuPage() {
             <span className="text-se-green-600">&#10003;</span>
             <p className="text-sm text-se-green-700 font-medium">{t('profileSaved')}</p>
           </div>
-          {venue.showReviewPrompt && (venue.googleReviewUrl || venue.tripadvisorUrl) && (
+         {venue.showReviewPrompt && (venue.googleReviewUrl || venue.tripadvisorUrl) && (
             <div className="mx-4 mt-3 px-4 py-4 rounded-xl bg-white border border-gray-200">
               <p className="text-sm font-medium text-gray-900 mb-1">
                 {t('enjoying')} {venue.name}?
