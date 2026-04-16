@@ -102,7 +102,33 @@ export default function MenuPage() {
   const [promptDismissed, setPromptDismissed] = useState(false)
   const [savedConfirmation, setSavedConfirmation] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
+  const [deletingData, setDeletingData] = useState(false)
+  const [deleteResult, setDeleteResult] = useState<string | null>(null)
 
+  const handleDeleteByEmail = async () => {
+    if (!venue) return
+    const email = prompt('Enter the email you used to save your profile. Your data will be deleted from this venue.')
+    if (!email || !email.includes('@')) return
+    setDeletingData(true)
+    setDeleteResult(null)
+    try {
+      const res = await fetch(`/api/menu/${venue.slug}/profile`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: email.trim() }),
+      })
+      const data = await res.json()
+      if (data.deleted) {
+        setDeleteResult('Your data has been deleted.')
+      } else {
+        setDeleteResult('No matching profile found for that email.')
+      }
+    } catch {
+      setDeleteResult('Could not delete data. Please try again.')
+    } finally {
+      setDeletingData(false)
+    }
+  }
   // Load allergens from URL params (shareable link)
   const [urlAllergensApplied, setUrlAllergensApplied] = useState(false)
   useEffect(() => {
@@ -149,7 +175,19 @@ export default function MenuPage() {
     setPromptDismissed(true)
   }
 
-  const handleDeleteProfile = () => {
+  const handleDeleteProfile = async () => {
+    if (!venue || !profile) return
+    if (!confirm('Delete your saved allergen profile from this venue? This will remove your data from their database.')) return
+    try {
+      await fetch(`/api/menu/${venue.slug}/profile`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: profile.email || '' }),
+      })
+    } catch (err) {
+      // Continue with local deletion even if server delete fails
+      console.error('Server profile deletion failed:', err)
+    }
     deleteProfile()
     setSelectedAllergens([])
     setPromptDismissed(false)
@@ -502,7 +540,21 @@ export default function MenuPage() {
               </section>
             )
           })
-        )}
+       )}
+
+        {/* GDPR data deletion link */}
+        <div className="mt-12 pb-8 text-center">
+          <button
+            onClick={handleDeleteByEmail}
+            disabled={deletingData}
+            className="text-xs text-gray-400 hover:text-red-500 underline transition-colors disabled:opacity-50"
+          >
+            {deletingData ? 'Deleting...' : 'Delete my data from this venue'}
+          </button>
+          {deleteResult && (
+            <p className="text-xs text-gray-500 mt-2">{deleteResult}</p>
+          )}
+        </div>
       </main>
     </div>
   )
