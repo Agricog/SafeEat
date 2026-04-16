@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { ALLERGENS, buildMaskFromIds, type AllergenInfo } from '../lib/allergens'
+import { ALLERGENS } from '../lib/allergens'
+import { useLanguage } from '../lib/LanguageContext'
 
 interface AllergenSelectorProps {
   selected: string[]
@@ -8,6 +8,8 @@ interface AllergenSelectorProps {
 }
 
 export default function AllergenSelector({ selected, onChange, compact }: AllergenSelectorProps) {
+  const { tAllergen } = useLanguage()
+
   const toggle = (id: string) => {
     onChange(
       selected.includes(id)
@@ -20,6 +22,7 @@ export default function AllergenSelector({ selected, onChange, compact }: Allerg
     <div className={compact ? 'flex flex-wrap gap-2' : 'grid grid-cols-2 gap-3'}>
       {ALLERGENS.map((a) => {
         const active = selected.includes(a.id)
+        const translated = tAllergen(a.id)
         return (
           <button
             key={a.id}
@@ -33,7 +36,7 @@ export default function AllergenSelector({ selected, onChange, compact }: Allerg
               }`}
           >
             <span className="text-lg">{a.icon}</span>
-            <span>{a.shortLabel}</span>
+            <span>{translated.shortLabel}</span>
           </button>
         )
       })}
