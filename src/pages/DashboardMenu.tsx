@@ -133,6 +133,38 @@ export default function DashboardMenu() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [historyDish, setHistoryDish] = useState<Dish | null>(null)
+  const [historyEntries, setHistoryEntries] = useState<Array<{ id: number; field_name: string; old_value: string; new_value: string; changed_at: string }>>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+
+  const handleViewHistory = async (dish: Dish) => {
+    setHistoryDish(dish)
+    setHistoryLoading(true)
+    setHistoryEntries([])
+    try {
+      const res = await request<{ history: any[] }>(`/api/dashboard/${venueId}/dishes/${dish.id}/history`)
+      setHistoryEntries(res.history)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  const formatFieldName = (name: string): string => {
+    if (name === 'allergen_mask') return 'Allergens'
+    if (name === 'may_contain_mask') return 'May contain'
+    if (name === 'ingredients') return 'Ingredients'
+    if (name === 'name') return 'Name'
+    return name
+  }
+
+  const formatMaskValue = (value: string): string => {
+    const num = parseInt(value)
+    if (isNaN(num) || num === 0) return 'None'
+    const ids = getIdsFromMask(num)
+    return ids.join(', ')
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -392,6 +424,13 @@ export default function DashboardMenu() {
                             {dish.active ? '✅' : '⏸️'}
                           </button>
                           <button
+                            onClick={() => handleViewHistory(dish)}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-xs"
+                            title="View change history"
+                          >
+                            📜
+                          </button>
+                          <button
                             onClick={() => setEditingId(dish.id)}
                             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-xs"
                             title="Edit"
@@ -432,6 +471,71 @@ export default function DashboardMenu() {
           </section>
         )
       })}
+
+      {/* Change history modal */}
+      {historyDish && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Change history</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{historyDish.name}</p>
+              </div>
+              <button
+                onClick={() => setHistoryDish(null)}
+                className="text-gray-400 hover:text-gray-600 text-xl px-2"
+                title="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-5 h-5 border-2 border-se-green-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : historyEntries.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-gray-500">No changes recorded yet.</p>
+                  <p className="text-xs text-gray-400 mt-1">Changes will appear here whenever you edit this dish.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {historyEntries.map((entry) => (
+                    <div key={entry.id} className="border border-gray-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-gray-700">{formatFieldName(entry.field_name)}</span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(entry.changed_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                        </span>
+                      </div>
+                      <div className="text-xs space-y-1">
+                        <div>
+                          <span className="text-gray-400">Before: </span>
+                          <span className="text-red-600">
+                            {entry.field_name.endsWith('_mask') ? formatMaskValue(entry.old_value) : (entry.old_value || '(empty)')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">After: </span>
+                          <span className="text-se-green-700">
+                            {entry.field_name.endsWith('_mask') ? formatMaskValue(entry.new_value) : (entry.new_value || '(empty)')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+              <p className="text-xs text-gray-500">
+                This audit trail can be used to prove dish history during EHO inspections or allergic incident investigations.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
