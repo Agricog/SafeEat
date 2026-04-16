@@ -4,7 +4,6 @@ import { useClerk } from '@clerk/clerk-react'
 import QRCodeDisplay from '../components/QRCodeDisplay'
 import { useApi } from '../lib/api'
 import { useVenue } from '../lib/VenueContext'
-
 interface VenueDetails {
   name: string
   address: string
@@ -14,14 +13,13 @@ interface VenueDetails {
   googleReviewUrl: string
   tripadvisorUrl: string
   showReviewPrompt: boolean
+  crossContaminationNotice: string
 }
-
 interface SubscriptionInfo {
   status: string
   subscriptionId: string | null
   customerId: string | null
 }
-
 const STATUS_LABELS: Record<string, { label: string; colour: string }> = {
   active: { label: 'Active', colour: 'bg-se-green-50 text-se-green-700' },
   trialing: { label: 'Free trial', colour: 'bg-blue-50 text-blue-700' },
@@ -30,13 +28,11 @@ const STATUS_LABELS: Record<string, { label: string; colour: string }> = {
   canceled: { label: 'Canceled', colour: 'bg-red-50 text-red-700' },
   unpaid: { label: 'Unpaid', colour: 'bg-red-50 text-red-700' },
 }
-
 export default function DashboardSettings() {
   const { request } = useApi()
   const { venueId, venueSlug } = useVenue()
   const { signOut } = useClerk()
   const [searchParams, setSearchParams] = useSearchParams()
-
   const [venue, setVenue] = useState<VenueDetails | null>(null)
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -44,6 +40,7 @@ export default function DashboardSettings() {
   const [draft, setDraft] = useState<VenueDetails>({
     name: '', address: '', phone: '', email: '', showNutrition: false,
     googleReviewUrl: '', tripadvisorUrl: '', showReviewPrompt: false,
+    crossContaminationNotice: '',
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -53,16 +50,16 @@ export default function DashboardSettings() {
   const [reviewSaving, setReviewSaving] = useState(false)
   const [reviewEditing, setReviewEditing] = useState(false)
   const [reviewDraft, setReviewDraft] = useState({ googleReviewUrl: '', tripadvisorUrl: '' })
-
+  const [crossContamEditing, setCrossContamEditing] = useState(false)
+  const [crossContamDraft, setCrossContamDraft] = useState('')
+  const [crossContamSaving, setCrossContamSaving] = useState(false)
   const menuUrl = `${window.location.origin}/menu/${venueSlug}`
   const billingResult = searchParams.get('billing')
-
   useEffect(() => {
     if (billingResult) {
       setSearchParams({}, { replace: true })
     }
   }, [billingResult, setSearchParams])
-
   useEffect(() => {
     let cancelled = false
     Promise.all([
@@ -80,17 +77,18 @@ export default function DashboardSettings() {
           googleReviewUrl: venueData.venue.google_review_url || '',
           tripadvisorUrl: venueData.venue.tripadvisor_url || '',
           showReviewPrompt: venueData.venue.show_review_prompt || false,
+          crossContaminationNotice: venueData.venue.cross_contamination_notice || '',
         }
         setVenue(v)
         setDraft(v)
         setReviewDraft({ googleReviewUrl: v.googleReviewUrl, tripadvisorUrl: v.tripadvisorUrl })
+        setCrossContamDraft(v.crossContaminationNotice)
         setSubscription(subData)
       })
       .catch((err) => { if (!cancelled) setError(err.message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [request, venueId])
-
   const handleSave = async () => {
     setSaving(true)
     setError(null)
@@ -117,7 +115,6 @@ export default function DashboardSettings() {
       setSaving(false)
     }
   }
-
   const handleNutritionToggle = async () => {
     if (!venue) return
     const newValue = !venue.showNutrition
@@ -133,7 +130,6 @@ export default function DashboardSettings() {
       setNutritionSaving(false)
     }
   }
-
   const handleReviewToggle = async () => {
     if (!venue) return
     const newValue = !venue.showReviewPrompt
@@ -148,7 +144,6 @@ export default function DashboardSettings() {
       setReviewSaving(false)
     }
   }
-
   const handleReviewUrlsSave = async () => {
     if (!venue) return
     setReviewSaving(true)
@@ -168,12 +163,29 @@ export default function DashboardSettings() {
       setReviewSaving(false)
     }
   }
-
+  const handleCrossContamSave = async () => {
+    if (!venue) return
+    setCrossContamSaving(true)
+    setError(null)
+    try {
+      await request(`/api/dashboard/${venueId}/venue`, {
+        method: 'PUT',
+        body: { crossContaminationNotice: crossContamDraft },
+      })
+      setVenue({ ...venue, crossContaminationNotice: crossContamDraft })
+      setCrossContamEditing(false)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setCrossContamSaving(false)
+    }
+  }
   const handleCancel = () => {
     if (venue) setDraft(venue)
     setEditing(false)
   }
-
   const handleSubscribe = async () => {
     setBillingLoading(true)
     setError(null)
@@ -185,7 +197,6 @@ export default function DashboardSettings() {
       setBillingLoading(false)
     }
   }
-
   const handleManageBilling = async () => {
     setBillingLoading(true)
     setError(null)
@@ -197,10 +208,8 @@ export default function DashboardSettings() {
       setBillingLoading(false)
     }
   }
-
   const subStatus = STATUS_LABELS[subscription?.status || 'trial'] || STATUS_LABELS.trial
   const hasSubscription = subscription?.subscriptionId !== null
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -208,11 +217,9 @@ export default function DashboardSettings() {
       </div>
     )
   }
-
   return (
     <div>
       <h2 className="text-xl font-bold text-gray-900 mb-6">Settings</h2>
-
       {error && (
         <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
       )}
@@ -228,7 +235,6 @@ export default function DashboardSettings() {
           <p className="text-sm text-se-green-700 font-medium">Settings saved</p>
         </div>
       )}
-
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Left column */}
         <div>
@@ -283,7 +289,50 @@ export default function DashboardSettings() {
               </div>
             )}
           </div>
-
+          {/* Cross-contamination notice */}
+          <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Cross-contamination notice</h3>
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <p className="text-xs text-gray-500 mb-3">
+              Shown as a banner on your customer menu. Use this to disclose shared kitchen equipment, fryers, or prep surfaces that could cause cross-contamination.
+            </p>
+            {crossContamEditing ? (
+              <div className="space-y-3">
+                <textarea
+                  value={crossContamDraft}
+                  onChange={(e) => setCrossContamDraft(e.target.value)}
+                  placeholder="e.g. Our kitchen handles nuts, gluten, and shellfish. We cannot guarantee any dish is free from cross-contamination."
+                  rows={4}
+                  maxLength={1000}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-se-green-500 focus:border-transparent resize-none"
+                />
+                <p className="text-xs text-gray-400">{crossContamDraft.length}/1000 characters</p>
+                <div className="flex gap-2">
+                  <button onClick={handleCrossContamSave} disabled={crossContamSaving}
+                    className="flex-1 px-4 py-2 rounded-lg bg-se-green-600 text-white text-sm font-medium hover:bg-se-green-700 transition-colors disabled:opacity-50">
+                    {crossContamSaving ? 'Saving...' : 'Save notice'}
+                  </button>
+                  <button onClick={() => { setCrossContamEditing(false); setCrossContamDraft(venue?.crossContaminationNotice || '') }}
+                    className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-gray-200 transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                {venue?.crossContaminationNotice ? (
+                  <div className="mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+                    <p className="text-sm text-amber-800">{venue.crossContaminationNotice}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 mb-3 italic">No notice set — add one to inform customers about shared kitchen equipment.</p>
+                )}
+                <button onClick={() => setCrossContamEditing(true)}
+                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors">
+                  {venue?.crossContaminationNotice ? 'Edit notice' : 'Add notice'}
+                </button>
+              </div>
+            )}
+          </div>
           {/* Menu display settings */}
           <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Menu display</h3>
           <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -306,7 +355,6 @@ export default function DashboardSettings() {
               </button>
             </div>
           </div>
-
           {/* Review prompt settings */}
           <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Customer reviews</h3>
           <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
@@ -327,7 +375,6 @@ export default function DashboardSettings() {
                 }`} />
               </button>
             </div>
-
             {reviewEditing ? (
               <div className="space-y-3 pt-2 border-t border-gray-100">
                 <div>
@@ -379,7 +426,6 @@ export default function DashboardSettings() {
               </div>
             )}
           </div>
-
           {/* Subscription */}
           <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Subscription</h3>
           <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -420,7 +466,6 @@ export default function DashboardSettings() {
             </div>
           </div>
         </div>
-
         {/* Right column - QR Code */}
         <div>
           <h3 className="text-sm font-semibold text-gray-700 mb-3">Your menu QR code</h3>
@@ -461,7 +506,6 @@ export default function DashboardSettings() {
               </button>
             </div>
           </div>
-
          {/* Placement tips */}
           <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Where to put it</h3>
           <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -480,7 +524,6 @@ export default function DashboardSettings() {
               </div>
             </div>
           </div>
-
           {/* Account */}
           <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Account</h3>
           <div className="bg-white rounded-xl border border-gray-200 p-5">
