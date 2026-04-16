@@ -11,6 +11,7 @@ interface Dish {
   description: string
   pricePence: number
   allergenMask: number
+  mayContainMask: number
   ingredients: string
   category: string
   active: boolean
@@ -41,6 +42,7 @@ function dishToFormData(dish: Dish): DishFormData {
     pricePounds: (dish.pricePence / 100).toFixed(2),
     category: dish.category,
     allergenIds: getIdsFromMask(dish.allergenMask),
+    mayContainIds: getIdsFromMask(dish.mayContainMask),
     ingredients: dish.ingredients || '',
     isVegan: dish.isVegan,
     isVegetarian: dish.isVegetarian,
@@ -65,6 +67,7 @@ function mapDishFromApi(d: any): Dish {
     description: d.description,
     pricePence: d.price_pence,
     allergenMask: d.allergen_mask,
+    mayContainMask: d.may_contain_mask || 0,
     ingredients: d.ingredients || '',
     category: d.category,
     active: d.active,
@@ -92,6 +95,7 @@ function buildDishBody(data: DishFormData) {
     pricePence: Math.round(parseFloat(data.pricePounds) * 100),
     category: data.category,
     allergenMask: buildMaskFromIds(data.allergenIds),
+    mayContainMask: buildMaskFromIds(data.mayContainIds),
     ingredients: data.ingredients.trim(),
     isVegan: data.isVegan,
     isVegetarian: data.isVegetarian,
