@@ -391,7 +391,7 @@ export default function MenuPage() {
               <p className="text-xs text-gray-500 mb-3">{t('reviewHelps')}</p>
               <div className="flex gap-2">
                 {venue.googleReviewUrl && (
-                  
+                  <a
                     href={venue.googleReviewUrl}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -401,7 +401,7 @@ export default function MenuPage() {
                   </a>
                 )}
                 {venue.tripadvisorUrl && (
-                  
+                  <a
                     href={venue.tripadvisorUrl}
                     target="_blank"
                     rel="noopener noreferrer"
