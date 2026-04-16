@@ -1291,6 +1291,65 @@ app.delete('/api/dashboard/:venueId/training/:entryId', async (c) => {
   }
 })
 // ---------------------------------------------------------------------------
+// DASHBOARD: Get allergen incidents
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/:venueId/incidents', async (c) => {
+  const venueId = c.get('venueId')
+  try {
+    const incidents = await sql`
+      SELECT id, incident_date, dish_id, dish_name, customer_description,
+        allergens_involved, severity, outcome, actions_taken, reported_to_eho, created_at
+      FROM allergen_incidents
+      WHERE venue_id = ${venueId}
+      ORDER BY incident_date DESC
+      LIMIT 100
+    `
+    return c.json({ incidents })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/incidents', venueId } })
+    console.error('Incidents fetch error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
+// DASHBOARD: Log allergen incident
+// ---------------------------------------------------------------------------
+app.post('/api/dashboard/:venueId/incidents', async (c) => {
+  const venueId = c.get('venueId')
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+  const dishName = sanitiseString(body.dishName, 200)
+  const customerDescription = sanitiseString(body.customerDescription, 2000)
+  const allergensInvolved = sanitiseString(body.allergensInvolved, 500)
+  const severity = ['mild', 'moderate', 'severe', 'anaphylaxis'].includes(body.severity) ? body.severity : 'mild'
+  const outcome = sanitiseString(body.outcome, 2000)
+  const actionsTaken = sanitiseString(body.actionsTaken, 2000)
+  const reportedToEho = !!body.reportedToEho
+  const dishId = body.dishId ? sanitiseId(body.dishId) : null
+  const incidentDate = body.incidentDate || new Date().toISOString().slice(0, 10)
+  if (!dishName) return c.json({ error: 'Dish name is required' }, 400)
+  try {
+    const entries = await sql`
+      INSERT INTO allergen_incidents (venue_id, incident_date, dish_id, dish_name, customer_description,
+        allergens_involved, severity, outcome, actions_taken, reported_to_eho)
+      VALUES (${venueId}, ${incidentDate}, ${dishId}, ${dishName}, ${customerDescription},
+        ${allergensInvolved}, ${severity}, ${outcome}, ${actionsTaken}, ${reportedToEho})
+      RETURNING id, incident_date, dish_id, dish_name, customer_description,
+        allergens_involved, severity, outcome, actions_taken, reported_to_eho, created_at
+    `
+    return c.json({ incident: entries[0] }, 201)
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/:venueId/incidents', venueId } })
+    console.error('Incident create error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 // DASHBOARD: Upload dish photo
 // ---------------------------------------------------------------------------
 app.post('/api/dashboard/:venueId/dishes/:dishId/photo', async (c) => {
