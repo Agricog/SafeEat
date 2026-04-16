@@ -748,7 +748,7 @@ app.get('/api/dashboard/:venueId/dishes', async (c) => {
   const venueId = c.get('venueId')
   try {
     const dishes = await sql`
-      SELECT id, name, description, price_pence, category, allergen_mask, ingredients,
+      SELECT id, name, description, price_pence, category, allergen_mask, may_contain_mask, ingredients,
         is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
         calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g,
         active, sort_order, photo_url
