@@ -884,6 +884,18 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
   } catch {
     return c.json({ error: 'Invalid JSON body' }, 400)
   }
+  // Get current dish state before updating (for audit log)
+  let currentDish = null
+  try {
+    const current = await sql`
+      SELECT name, allergen_mask, may_contain_mask, ingredients
+      FROM dishes WHERE id = ${dishId} AND venue_id = ${venueId} LIMIT 1
+    `
+    if (current.length > 0) currentDish = current[0]
+  } catch {
+    // Continue anyway — audit log is best-effort
+  }
+
   const updates = {}
   if (body.name !== undefined) {
     updates.name = sanitiseString(body.name, 200)
@@ -960,6 +972,26 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
     if (dishes.length === 0) {
       return c.json({ error: 'Dish not found' }, 404)
     }
+
+    // Write audit log entries for changed allergen/ingredient fields
+    if (currentDish) {
+      const updated = dishes[0]
+      const auditFields = [
+        { name: 'allergen_mask', old: currentDish.allergen_mask, new: updated.allergen_mask },
+        { name: 'may_contain_mask', old: currentDish.may_contain_mask, new: updated.may_contain_mask },
+        { name: 'ingredients', old: currentDish.ingredients, new: updated.ingredients },
+        { name: 'name', old: currentDish.name, new: updated.name },
+      ]
+      for (const field of auditFields) {
+        if (String(field.old ?? '') !== String(field.new ?? '')) {
+          sql`
+            INSERT INTO dish_change_log (dish_id, venue_id, field_name, old_value, new_value)
+            VALUES (${dishId}, ${venueId}, ${field.name}, ${String(field.old ?? '')}, ${String(field.new ?? '')})
+          `.catch((err) => console.error('Audit log error:', err))
+        }
+      }
+    }
+
     return c.json({ dish: dishes[0] })
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'PUT /api/dashboard/:venueId/dishes/:dishId', venueId, dishId } })
@@ -986,6 +1018,28 @@ app.delete('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'DELETE /api/dashboard/:venueId/dishes/:dishId', venueId, dishId } })
     console.error('Dish delete error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
+// DASHBOARD: Get dish change history (audit trail)
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/:venueId/dishes/:dishId/history', async (c) => {
+  const venueId = c.get('venueId')
+  const dishId = sanitiseId(c.req.param('dishId'))
+  if (!dishId) return c.json({ error: 'Invalid dish ID' }, 400)
+  try {
+    const log = await sql`
+      SELECT id, field_name, old_value, new_value, changed_at
+      FROM dish_change_log
+      WHERE dish_id = ${dishId} AND venue_id = ${venueId}
+      ORDER BY changed_at DESC
+      LIMIT 100
+    `
+    return c.json({ history: log })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/dishes/:dishId/history', venueId, dishId } })
+    console.error('Dish history fetch error:', err)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
