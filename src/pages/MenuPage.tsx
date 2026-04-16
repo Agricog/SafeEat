@@ -13,6 +13,7 @@ interface Dish {
   description: string
   pricePence: number
   allergenMask: number
+  mayContainMask: number
   category: string
   isVegan: boolean
   isVegetarian: boolean
@@ -39,6 +40,7 @@ interface Venue {
   showReviewPrompt: boolean
   googleReviewUrl: string
   tripadvisorUrl: string
+  crossContaminationNotice: string
 }
 
 interface MenuData {
@@ -199,11 +201,11 @@ export default function MenuPage() {
   )
 
   const customerMask = buildMaskFromIds(selectedAllergens)
-
   const categorised = useMemo(() => {
-    const cats: Record<string, (Dish & { safe: boolean; dietaryMatch: boolean })[]> = {}
+    const cats: Record<string, (Dish & { safe: boolean; mayContainConflict: boolean; dietaryMatch: boolean })[]> = {}
     for (const dish of dishes) {
       const safe = isDishSafe(dish.allergenMask, customerMask)
+      const mayContainConflict = (dish.mayContainMask & customerMask) > 0
       let dietaryMatch = true
       for (const key of activeDietaryFilters) {
         if (!dish[key as keyof Dish]) {
@@ -212,7 +214,7 @@ export default function MenuPage() {
         }
       }
       if (!cats[dish.category]) cats[dish.category] = []
-      cats[dish.category].push({ ...dish, safe, dietaryMatch })
+      cats[dish.category].push({ ...dish, safe, mayContainConflict, dietaryMatch })
     }
     return cats
   }, [dishes, customerMask, activeDietaryFilters])
@@ -392,12 +394,20 @@ export default function MenuPage() {
 
       <main className="max-w-lg mx-auto px-4 py-6">
         {/* Emergency notice */}
-        <div className="mb-6 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
+        <div className="mb-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
           <p className="text-sm font-semibold text-red-800 mb-0.5">In an allergic emergency, call 999</p>
           <p className="text-xs text-red-700">
             Always tell your server about your allergies before ordering. This menu is a guide — please confirm with staff.
           </p>
         </div>
+
+        {/* Venue cross-contamination notice */}
+        {venue.crossContaminationNotice && (
+          <div className="mb-6 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+            <p className="text-xs font-semibold text-amber-800 mb-0.5">Kitchen notice</p>
+            <p className="text-xs text-amber-700">{venue.crossContaminationNotice}</p>
+          </div>
+        )}
 
         {dishes.length === 0 ? (
           <div className="text-center py-12">
@@ -455,7 +465,19 @@ export default function MenuPage() {
                                 ))}
                               </div>
                             )}
-
+                            {/* May contain (cross-contamination) */}
+                            {dish.mayContainMask > 0 && (
+                              <div className="mt-2">
+                                <p className={`text-xs font-medium mb-1 ${dish.mayContainConflict ? 'text-amber-700' : 'text-gray-500'}`}>
+                                  May contain (cross-contamination):
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                  {getIdsFromMask(dish.mayContainMask).map((aid) => (
+                                    <AllergenBadge key={`mc-${aid}`} allergenId={aid} />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                             {/* Nutrition */}
                             {venue.showNutrition && dish.calories != null && (
                               <div className="mt-2 text-xs text-gray-400">
