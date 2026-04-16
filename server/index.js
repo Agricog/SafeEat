@@ -576,6 +576,59 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
   }
 })
 // ---------------------------------------------------------------------------
+// PUBLIC: Delete customer profile (GDPR right to erasure)
+// ---------------------------------------------------------------------------
+app.delete('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
+  const slug = sanitiseSlug(c.req.param('slug'))
+  if (!slug) return c.json({ error: 'Invalid venue slug' }, 400)
+
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  const { identifier } = body
+  if (!identifier || typeof identifier !== 'string') {
+    return c.json({ error: 'identifier is required' }, 400)
+  }
+
+  try {
+    const venues = await sql`
+      SELECT id FROM venues WHERE slug = ${slug} OR id = ${slug} LIMIT 1
+    `
+    if (venues.length === 0) {
+      return c.json({ error: 'Venue not found' }, 404)
+    }
+    const venueId = venues[0].id
+
+    // Hash the identifier the same way as on save
+    const encoder = new TextEncoder()
+    const data = encoder.encode(identifier.trim().toLowerCase())
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const hashedId = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+
+    const result = await sql`
+      DELETE FROM customer_profiles
+      WHERE venue_id = ${venueId} AND hashed_identifier = ${hashedId}
+      RETURNING id
+    `
+
+    if (result.length === 0) {
+      return c.json({ deleted: false, message: 'No matching profile found' })
+    }
+
+    console.log(`GDPR deletion: profile ${result[0].id} for venue ${venueId}`)
+    return c.json({ deleted: true })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'DELETE /api/menu/:slug/profile', slug } })
+    console.error('Profile deletion error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
 // PUBLIC: Contact form submission (stricter rate limit)
 // ---------------------------------------------------------------------------
 app.post('/api/contact', rateLimitProfile(), async (c) => {
