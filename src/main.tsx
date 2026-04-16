@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import * as Sentry from '@sentry/react'
 import App from './App'
+import { LanguageProvider } from './lib/LanguageContext'
 import './index.css'
 
 Sentry.init({
@@ -38,7 +39,9 @@ createRoot(rootElement).render(
   <StrictMode>
     <HelmetProvider>
       <BrowserRouter>
-        <App />
+        <LanguageProvider>
+          <App />
+        </LanguageProvider>
       </BrowserRouter>
     </HelmetProvider>
   </StrictMode>
