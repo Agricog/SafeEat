@@ -119,6 +119,13 @@ export default function MenuPage() {
       })
       const data = await res.json()
       if (data.deleted) {
+        // Also clear local profile if the email matches
+        if (profile && profile.email && profile.email.trim().toLowerCase() === email.trim().toLowerCase()) {
+          deleteProfile()
+          setSelectedAllergens([])
+          setPromptDismissed(false)
+          setSavedConfirmation(false)
+        }
         setDeleteResult('Your data has been deleted.')
       } else {
         setDeleteResult('No matching profile found for that email.')
