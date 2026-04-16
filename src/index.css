@@ -15,3 +15,8 @@ body {
   outline: 2px solid #16a34a;
   outline-offset: 2px;
 }
+
+@media print {
+  @page { size: landscape; margin: 10mm; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
