@@ -175,23 +175,26 @@ export default function MenuPage() {
     setPromptDismissed(true)
   }
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
   const handleDeleteProfile = async () => {
     if (!venue || !profile) return
-    if (!confirm('Delete your saved allergen profile from this venue? This will remove your data from their database.')) return
     try {
-      await fetch(`/api/menu/${venue.slug}/profile`, {
+      const res = await fetch(`/api/menu/${venue.slug}/profile`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier: profile.email || '' }),
       })
+      const data = await res.json()
+      console.log('Server delete result:', data)
     } catch (err) {
-      // Continue with local deletion even if server delete fails
       console.error('Server profile deletion failed:', err)
     }
     deleteProfile()
     setSelectedAllergens([])
     setPromptDismissed(false)
     setSavedConfirmation(false)
+    setShowDeleteConfirm(false)
   }
 
   const handleDietaryToggle = (key: string) => {
@@ -311,7 +314,7 @@ export default function MenuPage() {
               )}
               {profile && (
                 <button
-                  onClick={handleDeleteProfile}
+                  onClick={() => setShowDeleteConfirm(true)}
                   className="px-2 py-1 rounded-full text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                   title="Delete saved profile"
                 >
@@ -541,6 +544,32 @@ export default function MenuPage() {
             )
           })
        )}
+
+       {/* Delete confirmation modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="bg-white rounded-xl max-w-sm w-full p-5">
+              <h3 className="text-base font-semibold text-gray-900 mb-2">Delete your profile?</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                This will remove your saved allergen data from {venue.name}'s database and clear it from this device.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDeleteProfile}
+                  className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* GDPR data deletion link */}
         <div className="mt-12 pb-8 text-center">
