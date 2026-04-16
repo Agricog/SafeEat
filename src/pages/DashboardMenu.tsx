@@ -345,6 +345,17 @@ export default function DashboardMenu() {
                           {dish.allergenMask === 0 && (
                             <p className="text-xs text-se-green-600 mt-2">No allergens - safe for everyone</p>
                           )}
+                          {/* May contain (cross-contamination) */}
+                          {dish.mayContainMask > 0 && (
+                            <div className="mt-2">
+                              <p className="text-xs font-medium text-amber-700 mb-1">May contain (cross-contamination):</p>
+                              <div className="flex flex-wrap gap-1">
+                                {getIdsFromMask(dish.mayContainMask).map((aid) => (
+                                  <AllergenBadge key={`mc-${aid}`} allergenId={aid} />
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
                           {/* Nutrition summary */}
                           {dish.calories != null && (
