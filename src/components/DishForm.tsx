@@ -9,6 +9,7 @@ export interface DishFormData {
   pricePounds: string
   category: string
   allergenIds: string[]
+  mayContainIds: string[]
   ingredients: string
   isVegan: boolean
   isVegetarian: boolean
@@ -49,6 +50,7 @@ const EMPTY: DishFormData = {
   pricePounds: '',
   category: 'Mains',
   allergenIds: [],
+  mayContainIds: [],
   ingredients: '',
   isVegan: false,
   isVegetarian: false,
@@ -231,7 +233,21 @@ export default function DishForm({ initial, onSubmit, onCancel, submitLabel = 'A
           <p className="text-xs text-gray-400 mt-2">No allergens selected — dish will show as safe for everyone</p>
         )}
       </div>
-
+      {/* May contain (cross-contamination) */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          May contain (cross-contamination risk)
+          <span className="text-xs text-gray-400 font-normal ml-2">Tick allergens that could be present from shared equipment</span>
+        </label>
+        <AllergenSelector
+          selected={form.mayContainIds}
+          onChange={(ids) => setForm({ ...form, mayContainIds: ids })}
+          compact
+        />
+        <p className="text-xs text-gray-400 mt-2">
+          e.g. shared fryer with fish, prep surface used for nuts. Don't tick allergens already in the dish above.
+        </p>
+      </div>
       {/* Dietary Preferences */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">Dietary preferences</label>
