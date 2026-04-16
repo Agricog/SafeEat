@@ -1349,6 +1349,52 @@ app.post('/api/dashboard/:venueId/incidents', async (c) => {
   }
 })
 // ---------------------------------------------------------------------------
+// DASHBOARD: Get staff quiz results
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/:venueId/quiz-results', async (c) => {
+  const venueId = c.get('venueId')
+  try {
+    const results = await sql`
+      SELECT id, staff_name, score, total_questions, completed_at
+      FROM staff_quiz_results
+      WHERE venue_id = ${venueId}
+      ORDER BY completed_at DESC
+      LIMIT 100
+    `
+    return c.json({ results })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/quiz-results', venueId } })
+    console.error('Quiz results fetch error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
+// DASHBOARD: Save staff quiz result
+// ---------------------------------------------------------------------------
+app.post('/api/dashboard/:venueId/quiz-results', async (c) => {
+  const venueId = c.get('venueId')
+  let body
+  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON body' }, 400) }
+  const staffName = sanitiseString(body.staffName, 200)
+  const score = parseInt(body.score)
+  const totalQuestions = parseInt(body.totalQuestions)
+  if (!staffName) return c.json({ error: 'Staff name is required' }, 400)
+  if (isNaN(score) || isNaN(totalQuestions) || totalQuestions < 1) return c.json({ error: 'Invalid score' }, 400)
+  try {
+    const entries = await sql`
+      INSERT INTO staff_quiz_results (venue_id, staff_name, score, total_questions)
+      VALUES (${venueId}, ${staffName}, ${score}, ${totalQuestions})
+      RETURNING id, staff_name, score, total_questions, completed_at
+    `
+    return c.json({ result: entries[0] }, 201)
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/:venueId/quiz-results', venueId } })
+    console.error('Quiz result save error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // DASHBOARD: Upload dish photo
 // ---------------------------------------------------------------------------
