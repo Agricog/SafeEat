@@ -421,12 +421,11 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
     }
     const venue = venues[0]
     const dishes = await sql`
-      SELECT id, name, description, price_pence, category, allergen_mask, may_contain_mask, ingredients,
+      SELECT id, name, description, price_pence, category, allergen_mask, may_contain_mask, sort_order,
         is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
-        calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g,
-        active, sort_order, photo_url
+       calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g, photo_url
       FROM dishes
-      WHERE venue_id = ${venueId}
+      WHERE venue_id = ${venue.id} AND active = true
       ORDER BY sort_order, created_at
     `
     const verifications = await sql`
