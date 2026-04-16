@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, Fragment } from 'react'
-import { ALLERGENS, getIdsFromMask } from '../lib/allergens'
-import { useApi } from '../lib/api'
-import { useVenue } from '../lib/VenueContext'
+import { ALLERGENS, getIdsFromMask } from '../../lib/allergens'
+import { useApi } from '../../lib/api'
+import { useVenue } from '../../lib/VenueContext'
 
 interface Dish {
   id: string
