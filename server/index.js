@@ -410,7 +410,8 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
   try {
     const venues = await sql`
       SELECT id, name, slug, address, show_nutrition,
-        show_review_prompt, google_review_url, tripadvisor_url
+        show_review_prompt, google_review_url, tripadvisor_url,
+        cross_contamination_notice
       FROM venues
       WHERE slug = ${slug} OR id = ${slug}
       LIMIT 1
@@ -420,11 +421,12 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
     }
     const venue = venues[0]
     const dishes = await sql`
-      SELECT id, name, description, price_pence, category, allergen_mask, sort_order,
+      SELECT id, name, description, price_pence, category, allergen_mask, may_contain_mask, ingredients,
         is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
-       calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g, photo_url
+        calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g,
+        active, sort_order, photo_url
       FROM dishes
-      WHERE venue_id = ${venue.id} AND active = true
+      WHERE venue_id = ${venueId}
       ORDER BY sort_order, created_at
     `
     const verifications = await sql`
@@ -448,6 +450,7 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
         showReviewPrompt: venue.show_review_prompt,
         googleReviewUrl: venue.google_review_url,
         tripadvisorUrl: venue.tripadvisor_url,
+        crossContaminationNotice: venue.cross_contamination_notice || '',
       },
       dishes: dishes.map((d) => ({
         id: d.id,
@@ -456,6 +459,7 @@ app.get('/api/menu/:slug', rateLimitPublic(), async (c) => {
         pricePence: d.price_pence,
         category: d.category,
         allergenMask: d.allergen_mask,
+        mayContainMask: d.may_contain_mask || 0,
         isVegan: d.is_vegan,
         isVegetarian: d.is_vegetarian,
         isGlutenFree: d.is_gluten_free,
@@ -775,7 +779,8 @@ app.post('/api/dashboard/:venueId/dishes', async (c) => {
   const description = sanitiseString(body.description, 500)
   const pricePence = sanitisePrice(body.pricePence)
   const category = sanitiseCategory(body.category)
-  const allergenMask = sanitiseAllergenMask(body.allergenMask ?? 0)
+const allergenMask = sanitiseAllergenMask(body.allergenMask ?? 0)
+  const mayContainMask = sanitiseAllergenMask(body.mayContainMask ?? 0)
   const ingredients = sanitiseString(body.ingredients, 2000)
   const isVegan = !!body.isVegan
   const isVegetarian = !!body.isVegetarian
@@ -794,15 +799,16 @@ app.post('/api/dashboard/:venueId/dishes', async (c) => {
   if (pricePence === null) return c.json({ error: 'Price must be 0-9999999 pence' }, 400)
   if (!category) return c.json({ error: 'Category must be: Starters, Mains, Desserts, Sides, or Drinks' }, 400)
   if (allergenMask === null) return c.json({ error: 'Allergen mask must be 0-16383' }, 400)
+  if (mayContainMask === null) return c.json({ error: 'May-contain mask must be 0-16383' }, 400)
   try {
     const dishes = await sql`
-      INSERT INTO dishes (venue_id, name, description, price_pence, category, allergen_mask, ingredients,
+      INSERT INTO dishes (venue_id, name, description, price_pence, category, allergen_mask, may_contain_mask, ingredients,
         is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
         calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g)
-      VALUES (${venueId}, ${name}, ${description}, ${pricePence}, ${category}, ${allergenMask}, ${ingredients},
+      VALUES (${venueId}, ${name}, ${description}, ${pricePence}, ${category}, ${allergenMask}, ${mayContainMask}, ${ingredients},
         ${isVegan}, ${isVegetarian}, ${isGlutenFree}, ${isDairyFree}, ${isHalal}, ${isKosher},
         ${calories}, ${proteinG}, ${carbsG}, ${fatG}, ${fibreG}, ${sugarG}, ${saltG})
-      RETURNING id, name, description, price_pence, category, allergen_mask, ingredients,
+      RETURNING id, name, description, price_pence, category, allergen_mask, may_contain_mask, ingredients,
         is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
         calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g
     `
@@ -846,6 +852,10 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
     updates.allergenMask = sanitiseAllergenMask(body.allergenMask)
     if (updates.allergenMask === null) return c.json({ error: 'Allergen mask must be 0-16383' }, 400)
   }
+  if (body.mayContainMask !== undefined) {
+    updates.mayContainMask = sanitiseAllergenMask(body.mayContainMask)
+    if (updates.mayContainMask === null) return c.json({ error: 'May-contain mask must be 0-16383' }, 400)
+  }
   if (body.active !== undefined) {
     updates.active = !!body.active
   }
@@ -874,6 +884,7 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
         price_pence = COALESCE(${updates.pricePence ?? null}, price_pence),
         category = COALESCE(${updates.category ?? null}, category),
         allergen_mask = COALESCE(${updates.allergenMask ?? null}, allergen_mask),
+        may_contain_mask = COALESCE(${updates.mayContainMask ?? null}, may_contain_mask),
         active = COALESCE(${updates.active ?? null}, active),
         ingredients = COALESCE(${updates.ingredients ?? null}, ingredients),
         is_vegan = COALESCE(${updates.isVegan ?? null}, is_vegan),
@@ -890,7 +901,7 @@ app.put('/api/dashboard/:venueId/dishes/:dishId', async (c) => {
         sugar_g = COALESCE(${updates.sugarG !== undefined ? updates.sugarG : null}, sugar_g),
         salt_g = COALESCE(${updates.saltG !== undefined ? updates.saltG : null}, salt_g)
       WHERE id = ${dishId} AND venue_id = ${venueId}
-      RETURNING id, name, description, price_pence, category, allergen_mask, ingredients,
+      RETURNING id, name, description, price_pence, category, allergen_mask, may_contain_mask, ingredients,
         is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_halal, is_kosher,
         calories, protein_g, carbs_g, fat_g, fibre_g, sugar_g, salt_g, active
     `
@@ -1294,7 +1305,8 @@ app.get('/api/dashboard/:venueId/venue', async (c) => {
   try {
     const venues = await sql`
       SELECT id, name, slug, address, phone, email, show_nutrition,
-        google_review_url, tripadvisor_url, show_review_prompt
+        google_review_url, tripadvisor_url, show_review_prompt,
+        cross_contamination_notice
       FROM venues
       WHERE id = ${venueId}
       LIMIT 1
@@ -1346,6 +1358,9 @@ app.put('/api/dashboard/:venueId/venue', async (c) => {
   if (body.showReviewPrompt !== undefined) {
     updates.showReviewPrompt = !!body.showReviewPrompt
   }
+  if (body.crossContaminationNotice !== undefined) {
+    updates.crossContaminationNotice = sanitiseString(body.crossContaminationNotice, 1000)
+  }
   try {
     const venues = await sql`
       UPDATE venues
@@ -1357,10 +1372,12 @@ app.put('/api/dashboard/:venueId/venue', async (c) => {
         show_nutrition = COALESCE(${updates.showNutrition ?? null}, show_nutrition),
         google_review_url = COALESCE(${updates.googleReviewUrl ?? null}, google_review_url),
         tripadvisor_url = COALESCE(${updates.tripadvisorUrl ?? null}, tripadvisor_url),
-        show_review_prompt = COALESCE(${updates.showReviewPrompt ?? null}, show_review_prompt)
+        show_review_prompt = COALESCE(${updates.showReviewPrompt ?? null}, show_review_prompt),
+        cross_contamination_notice = COALESCE(${updates.crossContaminationNotice ?? null}, cross_contamination_notice)
       WHERE id = ${venueId}
       RETURNING id, name, slug, address, phone, email, show_nutrition,
-        google_review_url, tripadvisor_url, show_review_prompt
+        google_review_url, tripadvisor_url, show_review_prompt,
+        cross_contamination_notice
     `
     if (venues.length === 0) {
       return c.json({ error: 'Venue not found' }, 404)
