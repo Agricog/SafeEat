@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useClerk } from '@clerk/clerk-react'
 import QRCodeDisplay from '../components/QRCodeDisplay'
 import { useApi } from '../lib/api'
 import { useVenue } from '../lib/VenueContext'
@@ -33,6 +34,7 @@ const STATUS_LABELS: Record<string, { label: string; colour: string }> = {
 export default function DashboardSettings() {
   const { request } = useApi()
   const { venueId, venueSlug } = useVenue()
+  const { signOut } = useClerk()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [venue, setVenue] = useState<VenueDetails | null>(null)
@@ -460,7 +462,7 @@ export default function DashboardSettings() {
             </div>
           </div>
 
-          {/* Placement tips */}
+         {/* Placement tips */}
           <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Where to put it</h3>
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="space-y-3 text-sm text-gray-600">
@@ -477,6 +479,17 @@ export default function DashboardSettings() {
                 <p><span className="font-medium text-gray-900">Social media</span> - share the link in your bio or stories</p>
               </div>
             </div>
+          </div>
+
+          {/* Account */}
+          <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Account</h3>
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <button
+              onClick={() => signOut({ redirectUrl: '/' })}
+              className="w-full px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
+            >
+              Sign out
+            </button>
           </div>
         </div>
       </div>
