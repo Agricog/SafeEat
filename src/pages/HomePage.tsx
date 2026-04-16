@@ -15,6 +15,18 @@ const FAQ_ITEMS = [
     a: "Owen's Law calls for mandatory written allergen information at the point of ordering in UK restaurants, without the customer needing to ask. The FSA published voluntary best-practice guidance in March 2025 and is evaluating uptake in spring 2026 \u2014 if compliance is poor, mandatory legislation follows. SafeEat gives you written allergen information via QR code now, putting you ahead of the likely regulation.",
   },
   {
+    q: 'Does SafeEat handle cross-contamination?',
+    a: 'Yes — and this is unique to SafeEat among UK allergen tools for independents. You can set a venue-wide kitchen notice disclosing shared equipment (for example: "Our kitchen handles nuts, gluten, and shellfish — cross-contamination cannot be guaranteed"), and you can also flag per-dish cross-contamination risks. Each dish shows "Contains" allergens separately from "May contain" allergens. Customers see both, which is what UK allergen law actually requires — not just intentional ingredients.',
+  },
+  {
+    q: 'What if a customer has an allergic reaction — can you prove what was disclosed?',
+    a: 'Yes. SafeEat keeps a full audit trail of every dish change. When you edit allergens, ingredients, or cross-contamination flags, the old and new values are logged with a timestamp. If an EHO officer investigates an incident, you can pull up exactly what a dish was declared as on the date of the customer\'s visit. This is the single biggest legal protection SafeEat offers — and no other UK independent-focused tool has it.',
+  },
+  {
+    q: 'Can international customers use SafeEat?',
+    a: 'Yes. Your customer menu is available in English, French, Spanish, and German — so a German tourist scanning your QR code sees the allergens and interface in German automatically, with a flag picker to switch languages manually. Allergen names and UI labels are hand-verified translations, not machine translation, so allergen accuracy is guaranteed in every supported language. Essential for tourist regions like Cornwall, the Lake District, Edinburgh, and Bath.',
+  },
+  {
     q: 'How do customers use SafeEat?',
     a: "Customers scan the QR code on your table, window, or menu. They select their allergens from a simple visual picker, and your menu instantly filters to show only safe dishes. They can save their allergy profile so it remembers them on future visits \u2014 turning a one-time scan into a returning customer.",
   },
@@ -28,7 +40,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How is customer allergy data protected?',
-    a: 'Customer allergen profiles are special-category health data under UK GDPR Article 9. SafeEat encrypts all allergen data at rest, hashes personal identifiers, stores profiles only with explicit consent, and auto-deletes after 18 months of inactivity. Customers can delete their profile at any time.',
+    a: 'Customer allergen profiles are special-category health data under UK GDPR Article 9. SafeEat encrypts all allergen data at rest, hashes personal identifiers, stores profiles only with explicit consent, and auto-deletes after 18 months of inactivity. Customers can delete their profile at any time — both from their own device and from your database — satisfying the GDPR right to erasure.',
   },
   {
     q: 'Can I send notifications to my allergy customers?',
@@ -44,7 +56,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How much does SafeEat cost?',
-    a: "SafeEat Starter is \u00a329.99 per month per venue. This includes every feature \u2014 unlimited menu items, dish photos, customer allergen profiles, EHO inspection reports, analytics dashboard, targeted notifications, staff training log, printable table talkers, and more. No setup fees, no long-term contracts \u2014 cancel any time.",
+    a: "SafeEat Starter is \u00a329.99 per month per venue. This includes every feature \u2014 unlimited menu items, dish photos, cross-contamination disclosure, dish change audit trail, multi-language menu, customer allergen profiles, EHO inspection reports, analytics dashboard, targeted notifications, staff training log, printable table talkers, and more. No setup fees, no long-term contracts \u2014 cancel any time.",
   },
 ]
 
@@ -109,9 +121,18 @@ export default function HomePage() {
               what&apos;s safe to eat. You get an EHO-ready audit trail, targeted notifications,
               and customers who come back.
             </p>
-            <p className="text-base text-gray-800 font-medium mb-8 max-w-2xl mx-auto">
+            <p className="text-base text-gray-800 font-medium mb-3 max-w-2xl mx-auto">
               The only UK allergen tool that builds a database of your allergy customers —
               turning compliance into repeat business.
+            </p>
+            <p className="text-sm text-gray-500 mb-8 max-w-2xl mx-auto inline-flex items-center justify-center gap-1.5 flex-wrap">
+              <span>Now available in</span>
+              <span className="inline-flex items-center gap-1 font-medium text-gray-700">
+                🇬🇧 English <span className="text-gray-300">·</span>
+                🇫🇷 French <span className="text-gray-300">·</span>
+                🇪🇸 Spanish <span className="text-gray-300">·</span>
+                🇩🇪 German
+              </span>
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
@@ -133,10 +154,12 @@ export default function HomePage() {
 
         <div className="border-y border-gray-100 bg-gray-50">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
-            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-xs text-gray-500">
-              <span>Built in compliance with FSA best practice guidance (March 2025)</span>
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-gray-500">
+              <span>FSA best practice guidance (March 2025)</span>
               <span className="hidden sm:inline">·</span>
-              <span>All 14 UK regulated allergens covered</span>
+              <span>All 14 UK regulated allergens</span>
+              <span className="hidden sm:inline">·</span>
+              <span>Cross-contamination disclosure</span>
               <span className="hidden sm:inline">·</span>
               <span>UK GDPR Article 9 compliant</span>
             </div>
@@ -266,7 +289,7 @@ export default function HomePage() {
               Everything you need to manage allergens and grow your business
             </h2>
             <p className="text-gray-600 text-center max-w-2xl mx-auto mb-12">
-              10 features. One subscription. No other UK product offers all of this.
+              14 features. One subscription. No other UK product offers all of this.
             </p>
             <div className="grid sm:grid-cols-3 gap-4 mb-4">
               <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -278,6 +301,44 @@ export default function HomePage() {
                   Every dish tagged against all 14 regulated allergens. Customers filter your
                   menu in seconds. Dietary preferences — vegan, vegetarian, gluten-free, halal,
                   kosher — included as standard.
+                </p>
+              </div>
+              <div className="bg-white rounded-xl border-2 border-se-green-200 bg-se-green-50/30 p-5 relative">
+                <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-se-green-600 text-white text-[10px] font-bold uppercase tracking-wide">New</span>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">⚠️</span>
+                  <h3 className="font-semibold text-gray-900">Cross-contamination</h3>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Set a kitchen-wide disclosure for shared equipment, plus flag per-dish
+                  &ldquo;may contain&rdquo; allergens separately from intentional ingredients.
+                  No other UK independent-focused tool covers this.
+                </p>
+              </div>
+              <div className="bg-white rounded-xl border-2 border-se-green-200 bg-se-green-50/30 p-5 relative">
+                <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-se-green-600 text-white text-[10px] font-bold uppercase tracking-wide">New</span>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">📜</span>
+                  <h3 className="font-semibold text-gray-900">Dish change audit trail</h3>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Every allergen, ingredient, and cross-contamination edit is logged with a
+                  timestamp. If an incident happens, you can prove exactly what a dish was
+                  declared as on any past date.
+                </p>
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4 mb-4">
+              <div className="bg-white rounded-xl border-2 border-se-green-200 bg-se-green-50/30 p-5 relative">
+                <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-se-green-600 text-white text-[10px] font-bold uppercase tracking-wide">New</span>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">🌍</span>
+                  <h3 className="font-semibold text-gray-900">Multi-language menu</h3>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Customers switch between 🇬🇧 English, 🇫🇷 French, 🇪🇸 Spanish, and 🇩🇪 German
+                  with one tap. Hand-verified allergen translations — not machine translation
+                  — so accuracy is guaranteed. Perfect for tourist regions.
                 </p>
               </div>
               <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -381,13 +442,13 @@ export default function HomePage() {
               </div>
             </div>
             <div className="mt-8 bg-white rounded-xl border border-gray-200 p-6">
-              <div className="grid sm:grid-cols-3 gap-6">
+              <div className="grid sm:grid-cols-4 gap-6">
                 <div className="flex items-start gap-3">
                   <span className="text-xl flex-shrink-0">🚫</span>
                   <div>
                     <h4 className="font-semibold text-gray-900 text-sm mb-1">86&apos;d dish toggle</h4>
                     <p className="text-xs text-gray-500">
-                      Run out of a dish mid-service? One tap hides it from the customer menu. One tap brings it back tomorrow.
+                      Run out of a dish mid-service? One tap hides it from the customer menu.
                     </p>
                   </div>
                 </div>
@@ -396,7 +457,16 @@ export default function HomePage() {
                   <div>
                     <h4 className="font-semibold text-gray-900 text-sm mb-1">UK GDPR Article 9</h4>
                     <p className="text-xs text-gray-500">
-                      Allergen data encrypted at rest, identifiers hashed, consent enforced, auto-deleted after 18 months.
+                      Encrypted at rest, hashed identifiers, consent enforced, full right to erasure.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="text-xl flex-shrink-0">🆘</span>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 text-sm mb-1">Emergency 999 notice</h4>
+                    <p className="text-xs text-gray-500">
+                      Every menu carries a clear 999 emergency notice — EHO-recommended best practice.
                     </p>
                   </div>
                 </div>
@@ -405,7 +475,7 @@ export default function HomePage() {
                   <div>
                     <h4 className="font-semibold text-gray-900 text-sm mb-1">No app download</h4>
                     <p className="text-xs text-gray-500">
-                      Customers scan, filter, and save — all in their phone browser. No friction, no app store.
+                      Customers scan, filter, and save — all in their phone browser. No friction.
                     </p>
                   </div>
                 </div>
@@ -432,8 +502,12 @@ export default function HomePage() {
                 {[
                   'Unlimited menu items with photos',
                   'All 14 UK allergens + dietary filters',
+                  'Cross-contamination disclosure (kitchen + per-dish)',
+                  'Full dish change audit trail (EHO-defensible)',
+                  'Multi-language menu (EN / FR / ES / DE)',
                   'QR code menu + printable table talker',
                   'Customer allergy profiles with consent',
+                  'GDPR right to erasure built in',
                   'Allergen-targeted email notifications',
                   'Weekly insight emails every Monday',
                   'One-click EHO inspection report PDF',
@@ -442,6 +516,7 @@ export default function HomePage() {
                   '"Safe for me" shareable links',
                   'Google & TripAdvisor review prompts',
                   "86'd dish toggle for daily service",
+                  'Emergency 999 notice on every menu',
                   'UK GDPR Article 9 compliant',
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-2">
