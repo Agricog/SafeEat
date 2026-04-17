@@ -383,6 +383,8 @@ export default function MenuPage() {
             <span className="text-se-green-600">&#10003;</span>
             <p className="text-sm text-se-green-700 font-medium">{t('profileSaved')}</p>
           </div>
+        </div>
+      )}
 
       {showSavePrompt && (
         <div className="max-w-lg mx-auto">
