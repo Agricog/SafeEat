@@ -20,3 +20,8 @@ body {
   @page { size: landscape; margin: 10mm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
