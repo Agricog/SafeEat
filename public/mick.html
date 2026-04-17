@@ -23,11 +23,10 @@
     .detail-label { font-size: 12px; color: #9ca3af; }
     .detail-value { font-size: 14px; font-weight: 500; color: #111827; }
     .actions { padding: 0 24px 16px; }
-    .sms-row { display: flex; gap: 8px; }
-    .sms-input { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid #e5e7eb; font-size: 14px; outline: none; font-family: inherit; }
+    .sms-input { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #e5e7eb; font-size: 14px; outline: none; font-family: inherit; }
     .sms-input:focus { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,0.15); }
     .sms-input::placeholder { color: #9ca3af; }
-    .sms-btn { padding: 12px 20px; border-radius: 12px; background: #16a34a; color: #fff; font-size: 14px; font-weight: 500; border: none; cursor: pointer; transition: background 0.15s; white-space: nowrap; text-decoration: none; display: flex; align-items: center; justify-content: center; }
+    .sms-btn { width: 100%; padding: 12px 20px; border-radius: 12px; background: #16a34a; color: #fff; font-size: 14px; font-weight: 500; border: none; cursor: pointer; transition: background 0.15s; text-decoration: none; display: block; text-align: center; }
     .sms-btn:hover { background: #15803d; }
     .sms-label { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
     .qr-section { padding: 0 24px 24px; }
@@ -77,12 +76,10 @@
       </div>
       <div class="actions">
         <div class="sms-label">Send my details via text</div>
-        <div class="sms-row">
-          <input type="tel" id="phoneInput" class="sms-input" placeholder="Their phone number">
-          <a id="smsLink" class="sms-btn" href="#" onclick="sendSms(event)">Send</a>
-        </div>
+        <input type="tel" id="phoneInput" class="sms-input" placeholder="Their phone number">
+        <button onclick="sendSms()" class="sms-btn" style="margin-top:8px;">Send via SMS</button>
         <div id="saveContact" style="display:none;margin-top:8px;">
-          <button onclick="saveToContacts()" class="sms-btn" style="width:100%;">Save their number to your contacts</button>
+          <button onclick="saveToContacts()" class="sms-btn" style="background:#1d4ed8;">Save their number to your contacts</button>
         </div>
       </div>
       <div class="qr-section">
@@ -97,29 +94,28 @@
   </div>
   <script>
     var lastNumber = '';
-    function sendSms(e) {
-      e.preventDefault();
+    function sendSms() {
       var num = document.getElementById('phoneInput').value.replace(/\s/g, '');
       if (!num || num.length < 10) { alert('Enter a valid phone number'); return; }
       lastNumber = num;
       var msg = "Hi, it was great chatting! Here are my details: Mick from SafeEat - safeeat.co.uk/mick - See our demo menu: safeeat.co.uk/menu/joes-cafe-39vs";
       var ua = navigator.userAgent.toLowerCase();
-      var sep = ua.indexOf('iphone') > -1 || ua.indexOf('ipad') > -1 ? '&' : '?';
+      var sep = (ua.indexOf('iphone') > -1 || ua.indexOf('ipad') > -1) ? '&' : '?';
+      document.getElementById('saveContact').style.display = 'block';
       window.location.href = 'sms:' + num + sep + 'body=' + encodeURIComponent(msg);
-      setTimeout(function() {
-        document.getElementById('saveContact').style.display = 'block';
-      }, 500);
     }
     function saveToContacts() {
       if (!lastNumber) return;
-      var vcf = 'BEGIN:VCARD\r\nVERSION:3.0\r\nTEL:' + lastNumber + '\r\nEND:VCARD';
-      var blob = new Blob([vcf], { type: 'text/vcard' });
+      var vcf = 'BEGIN:VCARD\r\nVERSION:3.0\r\nTEL;TYPE=CELL:' + lastNumber + '\r\nNOTE:Met via SafeEat\r\nEND:VCARD';
+      var blob = new Blob([vcf], { type: 'text/vcard;charset=utf-8' });
       var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = 'contact.vcf';
-      a.click();
-      URL.revokeObjectURL(url);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = 'new-contact.vcf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
     }
   </script>
 </body>
