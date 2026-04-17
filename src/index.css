@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
@@ -9,6 +13,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
   color: #111827;
   background-color: #ffffff;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 *:focus-visible {
@@ -19,9 +25,4 @@ body {
 @media print {
   @page { size: landscape; margin: 10mm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-}
-
-html, body {
-  overflow-x: hidden;
-  width: 100%;
 }
