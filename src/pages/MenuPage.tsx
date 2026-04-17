@@ -383,38 +383,6 @@ export default function MenuPage() {
             <span className="text-se-green-600">&#10003;</span>
             <p className="text-sm text-se-green-700 font-medium">{t('profileSaved')}</p>
           </div>
-         {venue.showReviewPrompt && (venue.googleReviewUrl || venue.tripadvisorUrl) && (
-            <div className="mx-4 mt-3 px-4 py-4 rounded-xl bg-white border border-gray-200">
-              <p className="text-sm font-medium text-gray-900 mb-1">
-                {t('enjoying')} {venue.name}?
-              </p>
-              <p className="text-xs text-gray-500 mb-3">{t('reviewHelps')}</p>
-              <div className="flex gap-2">
-                {venue.googleReviewUrl && (
-                  <a
-                    href={venue.googleReviewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 text-sm font-medium text-center hover:bg-blue-100 transition-colors"
-                  >
-                    {t('googleReview')}
-                  </a>
-                )}
-                {venue.tripadvisorUrl && (
-                  <a
-                    href={venue.tripadvisorUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 px-3 py-2 rounded-lg bg-green-50 text-green-700 text-sm font-medium text-center hover:bg-green-100 transition-colors"
-                  >
-                    {t('tripadvisor')}
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {showSavePrompt && (
         <div className="max-w-lg mx-auto">
