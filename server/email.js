@@ -371,3 +371,104 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
 }
+// ---------------------------------------------------------------------------
+// 7. ToS + DPA confirmation → sent after successful Stripe checkout, includes
+//    the accepted version, timestamp, and link back to the live terms pages.
+//    This is the customer's receipt of what they agreed to, sent for their
+//    records — it is NOT what creates the contract (the click-wrap at signup
+//    is what creates the contract).
+// ---------------------------------------------------------------------------
+export async function sendToSConfirmation({
+  venueEmail,
+  venueName,
+  tosVersion,
+  acceptedAt,
+  ipAddress,
+}) {
+  if (!venueEmail) return null
+
+  // Format timestamp in UK-readable form without leaking server timezone.
+  let acceptedAtFormatted = 'unknown'
+  try {
+    const d = new Date(acceptedAt)
+    acceptedAtFormatted = d.toLocaleString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Europe/London',
+      timeZoneName: 'short',
+    })
+  } catch {
+    // Fall back to raw value if formatting fails — still useful in audit
+    acceptedAtFormatted = String(acceptedAt || 'unknown')
+  }
+
+  const ipLine = ipAddress
+    ? `<tr>
+         <td style="padding: 8px 0; color: #6b7280;">IP address</td>
+         <td style="padding: 8px 0; color: #111827; font-family: monospace; font-size: 13px;">${escapeHtml(ipAddress)}</td>
+       </tr>`
+    : ''
+
+  return sendEmail({
+    to: venueEmail,
+    subject: `SafeEat — your Terms of Service acceptance (v${tosVersion})`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 40px;">📄</span>
+          <h1 style="color: #111827; font-size: 20px; margin: 8px 0 4px;">Your acceptance on file</h1>
+          <p style="color: #6b7280; margin: 0;">Keep this email for your records</p>
+        </div>
+
+        <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <p style="color: #374151; margin: 0 0 16px; font-size: 14px; line-height: 1.6;">
+            Thanks, ${escapeHtml(venueName)}. This confirms the Terms of Service and Data Processing Agreement
+            you accepted as part of your SafeEat subscription.
+          </p>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; width: 140px;">Venue</td>
+              <td style="padding: 8px 0; color: #111827; font-weight: 500;">${escapeHtml(venueName)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Document version</td>
+              <td style="padding: 8px 0; color: #111827; font-weight: 500;">v${escapeHtml(tosVersion)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;">Accepted at</td>
+              <td style="padding: 8px 0; color: #111827; font-weight: 500;">${escapeHtml(acceptedAtFormatted)}</td>
+            </tr>
+            ${ipLine}
+          </table>
+        </div>
+
+        <div style="background: #f0fdf4; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+          <p style="color: #166534; margin: 0 0 8px; font-size: 14px; font-weight: 600;">
+            What you agreed to, in short:
+          </p>
+          <ul style="color: #374151; padding-left: 20px; margin: 0; font-size: 13px; line-height: 1.7;">
+            <li>SafeEat is a conduit for the allergen information your venue is already legally required to provide.</li>
+            <li>Your venue remains solely responsible for data accuracy, staff training, kitchen practices, and all aspects of food preparation.</li>
+            <li>SafeEat processes customer allergen data (UK GDPR Article 9 special-category) on your behalf under the DPA.</li>
+          </ul>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 24px;">
+          <a href="https://safeeat.co.uk/terms" style="display: inline-block; padding: 10px 24px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; margin-right: 8px;">View Terms</a>
+          <a href="https://safeeat.co.uk/dpa" style="display: inline-block; padding: 10px 24px; background: #f3f4f6; color: #374151; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">View DPA</a>
+        </div>
+
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 16px;">
+          <p style="color: #9ca3af; font-size: 11px; text-align: center; margin: 0; line-height: 1.6;">
+            This email is your receipt. If you need this acceptance record for an audit or enquiry,
+            keep this email or reply and we'll re-send it.<br>
+            SafeEat · <a href="https://safeeat.co.uk" style="color: #16a34a;">safeeat.co.uk</a>
+          </p>
+        </div>
+      </div>
+    `,
+  })
+}
