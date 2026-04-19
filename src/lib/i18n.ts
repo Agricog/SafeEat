@@ -113,10 +113,10 @@ export const ALLERGEN_TRANSLATIONS: Record<string, Record<Language, { label: str
 export const UI_TRANSLATIONS: Record<string, Record<Language, string>> = {
   // Header
   setAllergies: {
-    en: 'Set allergies',
-    fr: 'Définir allergies',
-    es: 'Alergias',
-    de: 'Allergien',
+    en: 'My allergies',
+    fr: 'Mes allergies',
+    es: 'Mis alergias',
+    de: 'Meine Allergien',
   },
   allergen: {
     en: 'allergen',
