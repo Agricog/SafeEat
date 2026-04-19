@@ -6,187 +6,260 @@ export default function TermsPage() {
     <>
       <Helmet>
         <title>Terms of Service — SafeEat</title>
-        <meta name="description" content="SafeEat terms of service. The agreement between SafeEat and venue owners using the allergen menu management platform." />
-        <link rel="canonical" href="https://safeeat.co.uk/terms" />
+        <meta
+          name="description"
+          content="SafeEat Terms of Service. SafeEat is a conduit for the allergen information food businesses are legally required to provide."
+        />
       </Helmet>
 
       <div className="min-h-screen bg-white">
+        {/* Nav */}
         <nav className="border-b border-gray-100">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
               <span className="text-2xl">🍽️</span>
               <span className="text-lg font-bold text-gray-900">SafeEat</span>
             </Link>
-            <Link to="/" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-              ← Back to home
+            <Link
+              to="/"
+              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              ← Home
             </Link>
           </div>
         </nav>
 
         <main className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Terms of Service</h1>
-          <p className="text-sm text-gray-400 mb-8">Last updated: 9 April 2026</p>
+          <div className="mb-10">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+              Terms of Service
+            </h1>
+            <p className="text-sm text-gray-500">
+              Plain-English summary. Full terms currently being finalised with legal counsel.
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Last updated: {new Date().toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </p>
+          </div>
 
-          <div className="prose prose-gray prose-sm max-w-none space-y-6 text-gray-700 leading-relaxed">
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-3">1. Agreement</h2>
-              <p>
-                These terms of service (&quot;Terms&quot;) govern your use of the SafeEat platform at
-                safeeat.co.uk (&quot;Service&quot;) operated by SafeEat (&quot;we&quot;, &quot;us&quot;,
-                &quot;our&quot;). By creating an account or using the Service, you agree to these Terms.
-                If you do not agree, do not use the Service.
-              </p>
-            </section>
+          {/* The core conduit clause — set at the top so it's unmissable */}
+          <section className="mb-10 p-6 rounded-xl bg-se-green-50 border border-se-green-200">
+            <h2 className="text-lg font-bold text-gray-900 mb-3">
+              What SafeEat is, in one paragraph
+            </h2>
+            <p className="text-sm text-gray-800 leading-relaxed">
+              SafeEat is a <strong>conduit</strong> for the allergen information food businesses
+              are legally required to provide. We display and record the information supplied by
+              the venue, and we help the venue communicate that information to customers
+              accessibly and consistently. We do not prepare food. We do not verify ingredient
+              accuracy. We do not train staff. The venue remains solely responsible for data
+              accuracy, staff training, kitchen practices, cross-contamination controls, and all
+              aspects of food preparation and service.
+            </p>
+          </section>
 
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-3">2. The Service</h2>
-              <p>
-                SafeEat provides a web-based allergen menu management platform for UK food businesses.
-                The Service includes: a customer-facing allergen-filtered menu accessed via QR code,
-                a venue management dashboard for menu items and allergen tagging, customer allergy
-                profile storage with consent management, weekly menu verification with audit logging,
-                and subscription billing.
-              </p>
-            </section>
+          {/* Venue responsibilities */}
+          <section className="mb-10">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Venue responsibilities
+            </h2>
+            <p className="text-sm text-gray-700 mb-3">
+              By using SafeEat, the venue agrees that it is solely responsible for:
+            </p>
+            <ul className="space-y-2 text-sm text-gray-700">
+              <li className="flex gap-2">
+                <span className="text-se-green-600 mt-0.5 flex-shrink-0">✓</span>
+                <span>The accuracy, completeness, and currency of all allergen information, ingredients, and dish descriptions entered into SafeEat.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-se-green-600 mt-0.5 flex-shrink-0">✓</span>
+                <span>Training staff in allergen awareness, food safety, and the correct use of the Service.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-se-green-600 mt-0.5 flex-shrink-0">✓</span>
+                <span>All aspects of food preparation, handling, and service, including cross-contamination controls, hygiene, temperature, and supplier management.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-se-green-600 mt-0.5 flex-shrink-0">✓</span>
+                <span>Compliance with all applicable laws and regulations, including the Food Information Regulations 2014, the Allergen Labelling Regulations 2021 ("Natasha&apos;s Law"), and UK GDPR.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-se-green-600 mt-0.5 flex-shrink-0">✓</span>
+                <span>Maintaining a valid food business registration and responding appropriately to EHO inspections.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-se-green-600 mt-0.5 flex-shrink-0">✓</span>
+                <span>Verifying that the allergen information displayed through SafeEat matches the food actually served to each customer.</span>
+              </li>
+            </ul>
+          </section>
 
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-3">3. Your responsibilities</h2>
-              <p>As a venue owner using SafeEat, you are responsible for:</p>
-              <p>
-                <strong>Accuracy of allergen information.</strong> You must ensure that the allergen
-                tags on your dishes are accurate and up to date. SafeEat is a tool to display allergen
-                information — it does not verify the accuracy of the data you enter. You remain legally
-                responsible for the allergen information you provide to customers under the Food
-                Information Regulations 2014 and Natasha&apos;s Law.
-              </p>
-              <p>
-                <strong>Regular verification.</strong> You should use the weekly verification feature
-                to confirm your menu allergen data is current. While SafeEat prompts you to verify,
-                the responsibility for keeping information accurate rests with you.
-              </p>
-              <p>
-                <strong>Account security.</strong> You must keep your login credentials secure and
-                notify us immediately if you suspect unauthorised access to your account.
-              </p>
-            </section>
+          {/* Our responsibilities */}
+          <section className="mb-10">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              What SafeEat commits to
+            </h2>
+            <ul className="space-y-2 text-sm text-gray-700">
+              <li className="flex gap-2">
+                <span className="text-se-green-600 mt-0.5 flex-shrink-0">✓</span>
+                <span>Provide the SafeEat software with reasonable care and skill.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-se-green-600 mt-0.5 flex-shrink-0">✓</span>
+                <span>Process personal data in accordance with UK GDPR and our Data Processing Agreement.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-se-green-600 mt-0.5 flex-shrink-0">✓</span>
+                <span>Encrypt allergen data at rest; use TLS in transit; maintain appropriate security measures.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-se-green-600 mt-0.5 flex-shrink-0">✓</span>
+                <span>Maintain registration with the Information Commissioner&apos;s Office (ICO).</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-se-green-600 mt-0.5 flex-shrink-0">✓</span>
+                <span>Honour the 30-Day Allergen-Ready Guarantee as set out below.</span>
+              </li>
+            </ul>
+          </section>
 
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-3">4. Customer data</h2>
-              <p>
-                When customers save allergen profiles through your venue&apos;s menu page, we act as
-                the data controller for their personal data. You can view anonymised customer insights
-                (allergen trends, visit counts, marketing opt-in rates) but you cannot access individual
-                customer identities or raw personal data.
-              </p>
-              <p>
-                Customer allergen data is special-category health data under UK GDPR Article 9. We
-                collect it only with the customer&apos;s explicit consent, encrypt it at rest, and
-                provide customers with the ability to delete their profile at any time.
-              </p>
-            </section>
+          {/* Guarantee */}
+          <section className="mb-10 p-6 rounded-xl bg-amber-50 border border-amber-200">
+            <h2 className="text-xl font-bold text-gray-900 mb-3">
+              The 30-Day Allergen-Ready Guarantee
+            </h2>
+            <p className="text-sm text-gray-700 leading-relaxed mb-3">
+              Within 30 days of subscription, SafeEat will make available: (1) a live QR-code
+              customer menu; (2) an active dish change audit trail; (3) a staff training log;
+              and (4) a downloadable EHO allergen report. If all four are not available within
+              30 days, the next 3 monthly subscription fees are waived.
+            </p>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              The guarantee relates to the availability of these deliverables within SafeEat. It
+              does not relate to the outcome of any inspection or incident, which depends on the
+              venue&apos;s own food preparation, staff, and practices.
+            </p>
+          </section>
 
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-3">5. Subscription and payment</h2>
-              <p>
-                SafeEat Starter costs £29.99 per month per venue, billed monthly through Stripe.
-                Your subscription begins when you complete the checkout process. You can cancel at
-                any time through the &quot;Manage billing&quot; button in your dashboard settings.
-                On cancellation, you retain access until the end of your current billing period.
-              </p>
-              <p>
-                We may change our pricing with 30 days&apos; notice by email. Price changes do not
-                affect your current billing period.
-              </p>
-              <p>
-                We offer a free trial period for new venues. No credit card is required to start
-                the trial. At the end of the trial, you will need to subscribe to continue using
-                the Service.
-              </p>
-            </section>
+          {/* Liability */}
+          <section className="mb-10">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Limitation of liability
+            </h2>
+            <p className="text-sm text-gray-700 leading-relaxed mb-3">
+              SafeEat&apos;s total liability under this agreement is capped at the subscription
+              fees paid by the venue in the 12 months preceding any claim.
+            </p>
+            <p className="text-sm text-gray-700 leading-relaxed mb-3">
+              SafeEat is not liable for any allergic reaction, illness, injury, or death arising
+              from food prepared or served at the venue&apos;s premises. The venue remains solely
+              responsible for the food it serves and for the information it supplies into
+              SafeEat. Nothing in these terms excludes liability for death or personal injury
+              caused by our negligence, or for any liability that cannot be excluded by law.
+            </p>
+          </section>
 
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-3">6. Intellectual property</h2>
-              <p>
-                The SafeEat platform, including its design, code, and documentation, is owned by us
-                and protected by copyright. You retain ownership of the content you create (menu items,
-                descriptions, venue information). By using the Service, you grant us a licence to
-                display your content as necessary to operate the platform.
-              </p>
-            </section>
+          {/* Subscription */}
+          <section className="mb-10">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Subscription &amp; payment
+            </h2>
+            <p className="text-sm text-gray-700 leading-relaxed mb-3">
+              SafeEat is £29.99/month per venue, charged in advance via Stripe. No setup fees.
+              No contracts. The venue may cancel any time from the dashboard — cancellation
+              takes effect at the end of the current billing period. No refunds for partial
+              months except where required by the Allergen-Ready Guarantee or by law.
+            </p>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              Founding Cornwall pricing, where offered, is locked for 3 years from the date of
+              subscription.
+            </p>
+          </section>
 
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-3">7. Limitation of liability</h2>
-              <p>
-                SafeEat provides a tool to display and manage allergen information. We do not guarantee
-                the accuracy of allergen data entered by venue owners. To the maximum extent permitted
-                by law, we are not liable for:
-              </p>
-              <p>
-                Any allergic reaction or adverse health event resulting from inaccurate allergen
-                information entered by a venue owner. Any loss of business, revenue, or data arising
-                from service interruptions. Any indirect, incidental, or consequential damages.
-              </p>
-              <p>
-                Our total liability to you in any 12-month period shall not exceed the total fees
-                you paid to us during that period. Nothing in these Terms limits our liability for
-                death or personal injury caused by our negligence, fraud, or any other liability
-                that cannot be excluded by law.
-              </p>
-            </section>
+          {/* Data protection */}
+          <section className="mb-10">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Data protection
+            </h2>
+            <p className="text-sm text-gray-700 leading-relaxed mb-3">
+              The venue is the data controller for all personal data processed through SafeEat.
+              SafeEat is the data processor. End User allergen data is special-category personal
+              data under Article 9 UK GDPR — the venue is responsible for obtaining explicit
+              consent where required.
+            </p>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              End User allergen profiles auto-delete after 18 months of inactivity, or at any
+              time on request. A full Data Processing Agreement is provided as part of the
+              signed Terms of Service at signup.
+            </p>
+          </section>
 
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-3">8. Availability</h2>
-              <p>
-                We aim to keep SafeEat available at all times but do not guarantee uninterrupted
-                service. We may perform maintenance with reasonable notice. We are not liable for
-                downtime beyond our reasonable control.
-              </p>
-            </section>
+          {/* Governing law */}
+          <section className="mb-10">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Governing law
+            </h2>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              These Terms are governed by the laws of England and Wales. The courts of England
+              and Wales have exclusive jurisdiction over any dispute.
+            </p>
+          </section>
 
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-3">9. Termination</h2>
-              <p>
-                You may terminate your account at any time by cancelling your subscription and
-                contacting us at hello@safeeat.co.uk. We may terminate or suspend your account
-                if you breach these Terms, fail to pay subscription fees, or use the Service in
-                a way that could harm other users or our infrastructure. On termination, your
-                venue data is deleted within 30 days, except for verification logs which are
-                retained for 6 years for food safety compliance.
-              </p>
-            </section>
+          {/* Contact */}
+          <section className="mb-10">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Contact
+            </h2>
+            <p className="text-sm text-gray-700 leading-relaxed mb-2">
+              SafeEat is a trading name of Autaimate Ltd.
+            </p>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              Questions about these Terms:{' '}
+              <a
+                href="mailto:hello@safeeat.co.uk"
+                className="text-se-green-700 underline hover:text-se-green-800"
+              >
+                hello@safeeat.co.uk
+              </a>
+            </p>
+          </section>
 
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-3">10. Governing law</h2>
-              <p>
-                These Terms are governed by the laws of England and Wales. Any disputes shall be
-                subject to the exclusive jurisdiction of the courts of England and Wales.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-3">11. Changes</h2>
-              <p>
-                We may update these Terms from time to time. We will notify registered venue owners
-                of material changes by email at least 30 days before they take effect. Continued use
-                of the Service after changes take effect constitutes acceptance.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold text-gray-900 mt-8 mb-3">12. Contact</h2>
-              <p>
-                Questions about these Terms? Contact us at hello@safeeat.co.uk.
-              </p>
-            </section>
+          {/* Banner */}
+          <div className="mt-12 p-4 rounded-lg bg-gray-50 border border-gray-200">
+            <p className="text-xs text-gray-600 leading-relaxed">
+              <strong>Note:</strong> this page is a plain-English summary of SafeEat&apos;s
+              position. Full legally-reviewed Terms of Service and Data Processing Agreement
+              are being finalised and will be provided to every customer at signup for
+              electronic acceptance. Customers who subscribe before that date will receive the
+              final Terms by email on publication.
+            </p>
           </div>
         </main>
 
-        <footer className="border-t border-gray-200 py-6">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 flex items-center justify-between">
-            <span className="text-xs text-gray-400">© {new Date().getFullYear()} SafeEat</span>
-            <div className="flex gap-4">
-              <Link to="/privacy" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">Privacy</Link>
-              <a href="mailto:hello@safeeat.co.uk" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">Contact</a>
+        {/* Footer */}
+        <footer className="border-t border-gray-200 py-10 bg-gray-50 mt-16">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🍽️</span>
+                <span className="text-sm font-bold text-gray-900">SafeEat</span>
+                <span className="text-xs text-gray-400">© {new Date().getFullYear()}</span>
+              </div>
+              <nav className="flex items-center gap-6">
+                <Link to="/privacy" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
+                  Privacy Policy
+                </Link>
+                <Link to="/terms" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
+                  Terms of Service
+                </Link>
+                <Link to="/contact" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
+                  Contact
+                </Link>
+              </nav>
             </div>
           </div>
         </footer>
