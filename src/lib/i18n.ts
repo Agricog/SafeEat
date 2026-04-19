@@ -188,6 +188,43 @@ export const UI_TRANSLATIONS: Record<string, Record<Language, string>> = {
     es: 'Menú prefiltrado desde un enlace compartido. Puedes ajustar tus alérgenos arriba.',
     de: 'Menü vorgefiltert über einen geteilten Link. Sie können Ihre Allergene oben anpassen.',
   },
+  // Save prompt — in-flight and error states
+  savingProfile: {
+    en: 'Saving...',
+    fr: 'Enregistrement...',
+    es: 'Guardando...',
+    de: 'Wird gespeichert...',
+  },
+  saveErrorNetwork: {
+    en: 'Could not connect. Please check your signal and try again.',
+    fr: 'Connexion impossible. Veuillez vérifier votre signal et réessayer.',
+    es: 'No se pudo conectar. Verifique su señal e inténtelo de nuevo.',
+    de: 'Verbindung nicht möglich. Bitte prüfen Sie Ihr Signal und versuchen Sie es erneut.',
+  },
+  saveErrorRateLimit: {
+    en: 'Too many attempts. Please wait a moment and try again.',
+    fr: 'Trop de tentatives. Veuillez patienter un instant et réessayer.',
+    es: 'Demasiados intentos. Espere un momento e inténtelo de nuevo.',
+    de: 'Zu viele Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.',
+  },
+  saveErrorServer: {
+    en: 'Something went wrong on our end. Please try again in a moment.',
+    fr: 'Une erreur est survenue de notre côté. Veuillez réessayer dans un instant.',
+    es: 'Algo salió mal por nuestra parte. Inténtelo de nuevo en un momento.',
+    de: 'Auf unserer Seite ist etwas schiefgelaufen. Bitte versuchen Sie es gleich noch einmal.',
+  },
+  emailInvalid: {
+    en: 'Please enter a valid email address.',
+    fr: 'Veuillez entrer une adresse email valide.',
+    es: 'Ingrese una dirección de correo electrónico válida.',
+    de: 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
+  },
+  emailRequiredForMarketing: {
+    en: 'Email is required if you want to receive updates from this venue.',
+    fr: 'L\'email est requis si vous souhaitez recevoir des mises à jour de ce local.',
+    es: 'El correo es obligatorio si desea recibir actualizaciones de este local.',
+    de: 'E-Mail ist erforderlich, wenn Sie Updates von diesem Lokal erhalten möchten.',
+  },
   // Profile saved
   profileSaved: {
     en: 'Profile saved - your menu is personalised',
