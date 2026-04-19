@@ -12,31 +12,31 @@ const FAQ_ITEMS = [
   },
   {
     q: "What is Owen's Law and how does it affect my restaurant?",
-    a: "Owen's Law calls for mandatory written allergen information at the point of ordering in UK restaurants, without the customer needing to ask. The FSA published voluntary best-practice guidance in March 2025 and is evaluating uptake in spring 2026 \u2014 if compliance is poor, mandatory legislation follows. SafeEat gives you written allergen information via QR code now, putting you ahead of the likely regulation.",
+    a: "Owen's Law calls for mandatory written allergen information at the point of ordering in UK restaurants, without the customer needing to ask. The FSA published voluntary best-practice guidance in March 2025 and is evaluating uptake in spring 2026 — if compliance is poor, mandatory legislation follows. SafeEat gives you written allergen information via QR code now, putting you ahead of the likely regulation.",
   },
   {
     q: 'Does SafeEat handle cross-contamination?',
-    a: 'Yes \u2014 and this is unique to SafeEat among UK allergen tools for independents. You can set a venue-wide kitchen notice disclosing shared equipment (for example: "Our kitchen handles nuts, gluten, and shellfish \u2014 cross-contamination cannot be guaranteed"), and you can also flag per-dish cross-contamination risks. Each dish shows "Contains" allergens separately from "May contain" allergens. Customers see both, which is what UK allergen law actually requires \u2014 not just intentional ingredients.',
+    a: 'Yes — and this is unique to SafeEat among UK allergen tools for independents. You can set a venue-wide kitchen notice disclosing shared equipment (for example: "Our kitchen handles nuts, gluten, and shellfish — cross-contamination cannot be guaranteed"), and you can also flag per-dish cross-contamination risks. Each dish shows "Contains" allergens separately from "May contain" allergens. Customers see both, which is what UK allergen law actually requires — not just intentional ingredients.',
   },
   {
-    q: 'What if a customer has an allergic reaction \u2014 can you prove what was disclosed?',
-    a: 'Yes. SafeEat keeps a full audit trail of every dish change. When you edit allergens, ingredients, or cross-contamination flags, the old and new values are logged with a timestamp. If an EHO officer investigates an incident, you can pull up exactly what a dish was declared as on the date of the customer\'s visit. This is the single biggest legal protection SafeEat offers \u2014 and no other UK independent-focused tool has it.',
+    q: 'What if a customer has an allergic reaction — can you prove what was disclosed?',
+    a: 'Yes. SafeEat keeps a full audit trail of every dish change. When you edit allergens, ingredients, or cross-contamination flags, the old and new values are logged with a timestamp. If an EHO officer investigates an incident, you can pull up exactly what a dish was declared as on the date of the customer\'s visit. This is the single biggest legal protection SafeEat offers — and no other UK independent-focused tool has it.',
   },
   {
     q: 'Is SafeEat liable if something goes wrong at my venue?',
-    a: 'No. SafeEat is a conduit for the allergen information you are legally required to provide as the food business. We display and record the information you supply \u2014 we don\'t prepare food, train your staff, or verify ingredients. You remain responsible for data accuracy, staff training, kitchen practices, and food preparation, exactly as you are today. Our Terms of Service make this allocation of responsibility explicit.',
+    a: 'No. SafeEat is a conduit for the allergen information you are legally required to provide as the food business. We display and record the information you supply — we don\'t prepare food, train your staff, or verify ingredients. You remain responsible for data accuracy, staff training, kitchen practices, and food preparation, exactly as you are today. Our Terms of Service make this allocation of responsibility explicit.',
   },
   {
     q: 'Can international customers use SafeEat?',
-    a: 'Yes. Your customer menu is available in English, French, Spanish, and German \u2014 so a German tourist scanning your QR code sees the allergens and interface in German automatically, with a flag picker to switch languages manually. Allergen names and UI labels are hand-verified translations, not machine translation, so allergen accuracy is guaranteed in every supported language. Essential for tourist regions like Cornwall, the Lake District, Edinburgh, and Bath.',
+    a: 'Yes. Allergen names, dietary filters, and the customer menu interface are available in English, French, Spanish, and German — so a German tourist scanning your QR code sees the allergens and controls in German automatically, with a flag picker to switch languages manually. Allergen names and UI labels are hand-verified translations, not machine translation, so allergen accuracy is guaranteed in every supported language. Dish names and descriptions remain in the language you enter them. Essential for tourist regions like Cornwall, the Lake District, Edinburgh, and Bath.',
   },
   {
     q: 'How do customers use SafeEat?',
-    a: "Customers scan the QR code on your table, window, or menu. They select their allergens from a simple visual picker, and your menu instantly filters to show only safe dishes. They can save their allergy profile so it remembers them on future visits \u2014 turning a one-time scan into a returning customer.",
+    a: "Customers scan the QR code on your table, window, or menu. They select their allergens from a simple visual picker, and your menu instantly filters to show only safe dishes. They can save their allergy profile so it remembers them on future visits — turning a one-time scan into a returning customer.",
   },
   {
     q: 'Do I need any special hardware or equipment?',
-    a: 'No. SafeEat is entirely web-based. Your customers scan a QR code with their phone camera \u2014 no app download required. You manage your menu and allergens from any browser. All you need is the printed QR code or table talker, which you can download from your dashboard.',
+    a: 'No. SafeEat is entirely web-based. Your customers scan a QR code with their phone camera — no app download required. You manage your menu and allergens from any browser. All you need is the printed QR code or table talker, which you can download from your dashboard.',
   },
   {
     q: 'What happens during an EHO inspection?',
@@ -44,23 +44,23 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How is customer allergy data protected?',
-    a: 'Customer allergen profiles are special-category health data under UK GDPR Article 9. SafeEat encrypts all allergen data at rest, hashes personal identifiers, stores profiles only with explicit consent, and auto-deletes after 18 months of inactivity. Customers can delete their profile at any time \u2014 both from their own device and from your database \u2014 satisfying the GDPR right to erasure.',
+    a: 'Customer allergen profiles are special-category health data under UK GDPR Article 9. SafeEat encrypts all allergen data at rest, hashes personal identifiers, stores profiles only with explicit consent, and auto-deletes after 18 months of inactivity. Customers can delete their profile at any time — both from their own device and from your database — satisfying the GDPR right to erasure.',
   },
   {
     q: 'Can I send notifications to my allergy customers?',
-    a: "Yes. Customers who opt into marketing can receive targeted notifications when your menu changes. You can filter by specific allergens \u2014 for example, notify only gluten-intolerant customers when you add new gluten-free dishes. This turns allergen compliance into a direct retention channel.",
+    a: "Yes. Customers who opt into marketing can receive targeted notifications when your menu changes. You can filter by specific allergens — for example, notify only gluten-intolerant customers when you add new gluten-free dishes. This turns allergen compliance into a direct retention channel.",
   },
   {
     q: 'Can customers share a pre-filtered menu link?',
-    a: "Yes. When a customer has their allergens selected, they can share a link that pre-filters your menu for the same allergies. This is especially useful for group bookings \u2014 one person with a nut allergy can send the filtered menu to the group so everyone can see what the restaurant offers safely.",
+    a: "Yes. When a customer has their allergens selected, they can share a link that pre-filters your menu for the same allergies. This is especially useful for group bookings — one person with a nut allergy can send the filtered menu to the group so everyone can see what the restaurant offers safely.",
   },
   {
     q: 'Is there a contract or commitment?',
-    a: "No. SafeEat is \u00a329.99 per month with no setup fees and no long-term contracts. You can cancel any time from your dashboard. If you cancel, your subscription runs until the end of the billing period.",
+    a: "No. SafeEat is £29.99 per month with no setup fees and no long-term contracts. You can cancel any time from your dashboard. If you cancel, your subscription runs until the end of the billing period.",
   },
   {
     q: 'How much does SafeEat cost?',
-    a: "SafeEat is \u00a329.99 per month per venue. This includes every feature \u2014 unlimited menu items, dish photos, cross-contamination disclosure, dish change audit trail, multi-language menu, customer allergen profiles, EHO inspection reports, analytics dashboard, targeted notifications, staff training log, printable table talkers, and more. No setup fees, no long-term contracts \u2014 cancel any time.",
+    a: "SafeEat is £29.99 per month per venue. This includes every feature — unlimited menu items, dish photos, cross-contamination disclosure, dish change audit trail, multi-language menu, customer allergen profiles, EHO inspection reports, analytics dashboard, targeted notifications, staff training log, printable table talkers, and more. No setup fees, no long-term contracts — cancel any time.",
   },
 ]
 
@@ -81,10 +81,10 @@ export default function HomePage() {
   return (
     <>
       <Helmet>
-        <title>SafeEat \u2014 The Three-Lock Allergen System for UK venues</title>
+        <title>SafeEat — The Three-Lock Allergen System for UK venues</title>
         <meta
           name="description"
-          content="SafeEat is the Three-Lock Allergen System for UK independent venues. Before they order, every allergy customer can see exactly what's safe \u2014 in their language, up front, in seconds. Inspection-ready in 30 days or your next 3 months are free."
+          content="SafeEat is the Three-Lock Allergen System for UK independent venues. Before they order, your allergy customers can see exactly what's safe — in their language, up front, in seconds. Inspection-ready in 30 days or your next 3 months are free."
         />
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>
@@ -116,7 +116,7 @@ export default function HomePage() {
           </div>
         </nav>
 
-        {/* HERO \u2014 customer-first framing */}
+        {/* HERO — customer-first framing */}
         <header className="py-16 sm:py-24">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-se-green-50 text-se-green-700 text-xs font-medium mb-6">
@@ -128,7 +128,7 @@ export default function HomePage() {
               <span className="text-se-green-600">they can see exactly what&apos;s safe.</span>
             </h1>
             <p className="text-lg sm:text-xl text-gray-600 mb-6 max-w-2xl mx-auto">
-              Every allergy customer. In their language. Up front. In seconds.
+              Your allergy customers. In their language. Up front. In seconds.
             </p>
             <p className="text-base text-gray-700 mb-8 max-w-2xl mx-auto leading-relaxed">
               SafeEat is a conduit for the allergen information you are already legally required to provide.
@@ -153,7 +153,7 @@ export default function HomePage() {
               £29.99/month. No setup fee. No lock-in. Cancel any time.
             </p>
             <p className="text-sm text-gray-500 mt-6 max-w-2xl mx-auto inline-flex items-center justify-center gap-1.5 flex-wrap">
-              <span>Customer menu available in</span>
+              <span>Allergen filters &amp; controls in</span>
               <span className="inline-flex items-center gap-1 font-medium text-gray-700">
                 🇬🇧 English <span className="text-gray-300">·</span>
                 🇫🇷 French <span className="text-gray-300">·</span>
@@ -187,7 +187,7 @@ export default function HomePage() {
                 The Three-Lock Allergen System
               </h2>
               <p className="text-gray-600 max-w-2xl mx-auto">
-                Three layers working together \u2014 so every allergy customer orders with confidence,
+                Three layers working together — so your allergy customers order with confidence,
                 and you have the record to prove you did everything right.
               </p>
             </div>
@@ -196,7 +196,7 @@ export default function HomePage() {
                 <div className="text-xs font-bold text-se-green-700 uppercase tracking-wide mb-2">Lock 1</div>
                 <h3 className="font-semibold text-gray-900 mb-2 text-lg">Confidence at the table</h3>
                 <p className="text-sm text-gray-700 leading-relaxed">
-                  Every allergy customer sees what&apos;s safe for them \u2014 in seconds, in their language,
+                  Your allergy customers see what&apos;s safe for them — in seconds, in their language,
                   before they order. One scan. No app. Works on every phone.
                 </p>
               </div>
@@ -212,7 +212,7 @@ export default function HomePage() {
                 <div className="text-xs font-bold text-se-green-700 uppercase tracking-wide mb-2">Lock 3</div>
                 <h3 className="font-semibold text-gray-900 mb-2 text-lg">Record behind the scenes</h3>
                 <p className="text-sm text-gray-700 leading-relaxed">
-                  Every dish change, scan, and training session \u2014 time-stamped and inspection-ready.
+                  Every dish change, scan, and training session — time-stamped and inspection-ready.
                   If anyone ever asks, the record is already there.
                 </p>
               </div>
@@ -230,7 +230,7 @@ export default function HomePage() {
               Your allergen system, inspection-ready in 30 days.
             </h2>
             <p className="text-lg text-gray-800 font-semibold mb-3">
-              If not \u2014 your next 3 months are free.
+              If not — your next 3 months are free.
             </p>
             <p className="text-sm text-gray-600 max-w-xl mx-auto leading-relaxed">
               Within 30 days we&apos;ll have your live QR menu, dish audit trail, staff training log,
@@ -248,7 +248,7 @@ export default function HomePage() {
             <p className="text-gray-600 text-center max-w-2xl mx-auto mb-4">
               2.4 million adults in the UK have a clinically confirmed food allergy. 60% of young
               allergic diners avoid eating out entirely because they don&apos;t trust the information.
-              SafeEat gives them confidence \u2014 and gives you their repeat business.
+              SafeEat gives them confidence — and gives you their repeat business.
             </p>
             <p className="text-center text-sm text-red-600 font-medium mb-12">
               Recent fines for allergen failures have reached £43,000 for independent UK restaurants.
@@ -260,7 +260,7 @@ export default function HomePage() {
                 <p className="text-sm text-gray-600">
                   Every dish tagged against all 14 allergens regulated under UK law. Gluten, nuts,
                   milk, eggs, fish, crustaceans, molluscs, sesame, soy, mustard, celery, lupin,
-                  and sulphites \u2014 all covered.
+                  and sulphites — all covered.
                 </p>
               </div>
               <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -268,7 +268,7 @@ export default function HomePage() {
                 <h3 className="font-semibold text-gray-900 mb-2">QR-code allergen menus</h3>
                 <p className="text-sm text-gray-600">
                   Customers scan your QR code and filter your menu by their specific allergies.
-                  Safe dishes highlighted, unsafe dishes faded. No app download \u2014 works in any
+                  Safe dishes highlighted, unsafe dishes faded. No app download — works in any
                   phone browser.
                 </p>
               </div>
@@ -289,7 +289,7 @@ export default function HomePage() {
         <section className="py-12 bg-amber-50 border-y border-amber-200">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">
-              Owen&apos;s Law is coming \u2014 are you ready?
+              Owen&apos;s Law is coming — are you ready?
             </h2>
             <p className="text-sm text-gray-700 leading-relaxed max-w-2xl mx-auto mb-4">
               Owen&apos;s Law calls for mandatory written allergen information at the point of ordering
@@ -298,7 +298,7 @@ export default function HomePage() {
               businesses still rely on verbal-only allergen communication.
             </p>
             <p className="text-sm text-amber-800 font-semibold">
-              SafeEat gives you written allergen information via QR code today \u2014 ahead of the regulation.
+              SafeEat gives you written allergen information via QR code today — ahead of the regulation.
             </p>
           </div>
         </section>
@@ -325,7 +325,7 @@ export default function HomePage() {
                 <p className="text-sm text-gray-600">
                   Download a print-ready A5 table talker with your QR code.
                   Place it on tables, in the window, or on your paper menus.
-                  Customers scan with any phone \u2014 no app needed.
+                  Customers scan with any phone — no app needed.
                 </p>
               </div>
               <div className="text-center">
@@ -348,7 +348,7 @@ export default function HomePage() {
               Compliance that compounds into repeat visits
             </h2>
             <p className="text-se-green-100 text-base leading-relaxed max-w-2xl mx-auto mb-6">
-              Every other allergen tool stops at compliance \u2014 display the data and move on.
+              Every other allergen tool stops at compliance — display the data and move on.
               SafeEat is different. When allergy customers save their profile, you build a database
               of diners with their allergen needs and opt-ins. Notify them when you add dishes that
               are safe for them. Ask them for a Google or TripAdvisor review after their visit.
@@ -377,8 +377,8 @@ export default function HomePage() {
                 </div>
                 <p className="text-sm text-gray-600">
                   Every dish tagged against all 14 regulated allergens. Customers filter your
-                  menu in seconds. Dietary preferences \u2014 vegan, vegetarian, gluten-free, halal,
-                  kosher \u2014 included as standard.
+                  menu in seconds. Dietary preferences — vegan, vegetarian, gluten-free, halal,
+                  kosher — included as standard.
                 </p>
               </div>
               <div className="bg-white rounded-xl border-2 border-se-green-200 bg-se-green-50/30 p-5 relative">
@@ -411,12 +411,13 @@ export default function HomePage() {
                 <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-se-green-600 text-white text-[10px] font-bold uppercase tracking-wide">New</span>
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-2xl">🌍</span>
-                  <h3 className="font-semibold text-gray-900">Multi-language menu</h3>
+                  <h3 className="font-semibold text-gray-900">Multi-language filters</h3>
                 </div>
                 <p className="text-sm text-gray-600">
-                  Customers switch between 🇬🇧 English, 🇫🇷 French, 🇪🇸 Spanish, and 🇩🇪 German
-                  with one tap. Hand-verified allergen translations \u2014 not machine translation
-                  \u2014 so accuracy is guaranteed. Perfect for tourist regions.
+                  Allergen names, dietary filters, and menu controls available in 🇬🇧 English, 🇫🇷 French,
+                  🇪🇸 Spanish, and 🇩🇪 German. Hand-verified translations — not machine translation —
+                  so allergen accuracy is guaranteed. Perfect for tourist regions. (Dish descriptions
+                  remain in the language you enter them.)
                 </p>
               </div>
               <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -469,7 +470,7 @@ export default function HomePage() {
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">Weekly insight emails</h3>
                   <p className="text-sm text-gray-600">
-                    Every Monday, a branded report lands in your inbox \u2014 scan trends, new profiles,
+                    Every Monday, a branded report lands in your inbox — scan trends, new profiles,
                     top allergens, and a smart recommendation. Stay on top of your allergen data
                     without logging in.
                   </p>
@@ -481,7 +482,7 @@ export default function HomePage() {
                   <h3 className="font-semibold text-gray-900 mb-1">&ldquo;Safe for me&rdquo; shareable link</h3>
                   <p className="text-sm text-gray-600">
                     Customers share a pre-filtered menu link with friends and family. Perfect for group
-                    bookings \u2014 one person sends the link and everyone sees what&apos;s safe before they
+                    bookings — one person sends the link and everyone sees what&apos;s safe before they
                     arrive.
                   </p>
                 </div>
@@ -544,7 +545,7 @@ export default function HomePage() {
                   <div>
                     <h4 className="font-semibold text-gray-900 text-sm mb-1">Emergency 999 notice</h4>
                     <p className="text-xs text-gray-500">
-                      Every menu carries a clear 999 emergency notice \u2014 EHO-recommended best practice.
+                      Every menu carries a clear 999 emergency notice — EHO-recommended best practice.
                     </p>
                   </div>
                 </div>
@@ -553,7 +554,7 @@ export default function HomePage() {
                   <div>
                     <h4 className="font-semibold text-gray-900 text-sm mb-1">No app download</h4>
                     <p className="text-xs text-gray-500">
-                      Customers scan, filter, and save \u2014 all in their phone browser. No friction.
+                      Customers scan, filter, and save — all in their phone browser. No friction.
                     </p>
                   </div>
                 </div>
@@ -585,7 +586,7 @@ export default function HomePage() {
                   'All 14 UK allergens + dietary filters',
                   'Cross-contamination disclosure (kitchen + per-dish)',
                   'Full dish change audit trail (EHO-defensible)',
-                  'Multi-language menu (EN / FR / ES / DE)',
+                  'Multi-language allergen filters (EN / FR / ES / DE)',
                   'QR code menu + printable table talker',
                   'Customer allergy profiles with consent',
                   'GDPR right to erasure built in',
@@ -611,7 +612,7 @@ export default function HomePage() {
                   The 30-Day Allergen-Ready Guarantee
                 </p>
                 <p className="text-sm text-gray-700">
-                  Inspection-ready in 30 days \u2014 or your next 3 months are free.
+                  Inspection-ready in 30 days — or your next 3 months are free.
                 </p>
               </div>
               <Link
