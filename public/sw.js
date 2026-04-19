@@ -1,15 +1,13 @@
 // SafeEat Service Worker — offline menu caching
-const CACHE_VERSION = 'safeeat-v2'
+const CACHE_VERSION = 'safeeat-v3'
 const STATIC_CACHE = `${CACHE_VERSION}-static`
 const API_CACHE = `${CACHE_VERSION}-api`
-
 // App shell files to pre-cache on install
 const APP_SHELL = [
   '/',
   '/favicon.svg',
   '/manifest.json',
 ]
-
 // ── Install: pre-cache app shell ────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -17,7 +15,6 @@ self.addEventListener('install', (event) => {
   )
   self.skipWaiting()
 })
-
 // ── Activate: clean old caches ──────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -31,21 +28,38 @@ self.addEventListener('activate', (event) => {
   )
   self.clients.claim()
 })
-
+// ── Message handler: allow the app to request a full cache purge ────────────
+// Used on sign-out so no cached data from the previous session leaks into the
+// next user's session on a shared device. Also exposed for manual cache reset.
+self.addEventListener('message', (event) => {
+  if (!event.data || typeof event.data !== 'object') return
+  if (event.data.type === 'PURGE_CACHES') {
+    event.waitUntil(
+      caches.keys()
+        .then((keys) => Promise.all(
+          keys
+            .filter((key) => key.startsWith('safeeat-'))
+            .map((key) => caches.delete(key))
+        ))
+        .then(() => {
+          // Acknowledge back to the client if it wants confirmation
+          if (event.source) {
+            event.source.postMessage({ type: 'CACHES_PURGED' })
+          }
+        })
+    )
+  }
+})
 // ── Fetch strategies ────────────────────────────────────────────────────────
-
 function isMenuApi(url) {
   return url.pathname.startsWith('/api/menu/')
 }
-
 function isStaticAsset(url) {
   return /\.(js|css|svg|png|jpg|jpeg|webp|woff2?|ico)$/.test(url.pathname)
 }
-
 function isDashboardApi(url) {
   return url.pathname.startsWith('/api/dashboard/')
 }
-
 // Network-first: try network, fall back to cache (for menu API)
 async function networkFirst(request) {
   const cache = await caches.open(API_CACHE)
@@ -64,7 +78,6 @@ async function networkFirst(request) {
     )
   }
 }
-
 // Cache-first: serve from cache, fall back to network (for static assets)
 async function cacheFirst(request) {
   const cached = await caches.match(request)
@@ -80,30 +93,24 @@ async function cacheFirst(request) {
     return new Response('Offline', { status: 503 })
   }
 }
-
 // ── Main fetch handler ──────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
-
   // Only handle same-origin GET requests
   if (url.origin !== self.location.origin) return
   if (event.request.method !== 'GET') return
-
   // Skip dashboard API — always needs fresh auth data
   if (isDashboardApi(url)) return
-
   // Menu API — network-first with offline cache
   if (isMenuApi(url)) {
     event.respondWith(networkFirst(event.request))
     return
   }
-
   // Static assets — cache-first for speed
   if (isStaticAsset(url)) {
     event.respondWith(cacheFirst(event.request))
     return
   }
-
   // HTML navigation — network-first so the SPA always loads fresh
   if (event.request.mode === 'navigate') {
     event.respondWith(
