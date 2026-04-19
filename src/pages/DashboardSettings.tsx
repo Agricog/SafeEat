@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useClerk } from '@clerk/clerk-react'
 import QRCodeDisplay from '../components/QRCodeDisplay'
+import ToSAcceptance from '../components/ToSAcceptance'
 import { useApi } from '../lib/api'
 import { useVenue } from '../lib/VenueContext'
 interface VenueDetails {
@@ -54,6 +55,7 @@ export default function DashboardSettings() {
   const [crossContamDraft, setCrossContamDraft] = useState('')
   const [crossContamSaving, setCrossContamSaving] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+  const [showToSGate, setShowToSGate] = useState(false)
   const menuUrl = `${window.location.origin}/menu/${venueSlug}`
   const billingResult = searchParams.get('billing')
   useEffect(() => {
@@ -187,7 +189,10 @@ export default function DashboardSettings() {
     if (venue) setDraft(venue)
     setEditing(false)
   }
-  const handleSubscribe = async () => {
+  // Perform the actual Stripe redirect. Called either directly (if the venue
+  // already has a valid ToS acceptance on record) or via handleToSAccepted
+  // after the gate modal successfully records a new acceptance.
+  const redirectToStripe = async () => {
     setBillingLoading(true)
     setError(null)
     try {
@@ -197,6 +202,36 @@ export default function DashboardSettings() {
       setError(err.message)
       setBillingLoading(false)
     }
+  }
+  // Subscribe click handler — checks whether the venue already has a valid
+  // acceptance on record for the CURRENT ToS version. If yes, goes straight
+  // to Stripe. If no, opens the gate modal. The server-side checkout route
+  // also enforces this (defence in depth) and would return 403 if a user
+  // tried to skip the gate via a direct API call.
+  const handleSubscribe = async () => {
+    setBillingLoading(true)
+    setError(null)
+    try {
+      const res = await request<{
+        currentVersion: string
+        acceptance: { id: string } | null
+      }>(`/api/dashboard/${venueId}/tos/acceptance`)
+      if (res.acceptance) {
+        await redirectToStripe()
+      } else {
+        setBillingLoading(false)
+        setShowToSGate(true)
+      }
+    } catch (err: any) {
+      setError(err.message)
+      setBillingLoading(false)
+    }
+  }
+  // Called by the ToSAcceptance component after it has successfully written
+  // an acceptance row to the server. We close the gate and proceed to Stripe.
+  const handleToSAccepted = async () => {
+    setShowToSGate(false)
+    await redirectToStripe()
   }
   const handleManageBilling = async () => {
     setBillingLoading(true)
@@ -577,6 +612,17 @@ export default function DashboardSettings() {
           </div>
         </div>
       </div>
+      {/* ToS acceptance gate — shown modally before Stripe redirect if no
+          current-version acceptance is on record. Only blocks the subscribe
+          path, never blocks existing authenticated usage. */}
+      {showToSGate && venue && (
+        <ToSAcceptance
+          venueId={venueId}
+          venueName={venue.name}
+          onAccepted={handleToSAccepted}
+          onDismiss={() => setShowToSGate(false)}
+        />
+      )}
     </div>
   )
 }
