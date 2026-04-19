@@ -684,9 +684,13 @@ export default function HomePage() {
                 SafeEat is a conduit for the allergen information businesses are legally required to provide.
                 We display and record the information supplied by the venue. The venue remains responsible for
                 the accuracy of that information, staff training, kitchen practices, and food preparation.
-                Full terms and conditions at{' '}
+                See our{' '}
                 <Link to="/terms" className="text-se-green-700 underline hover:text-se-green-800">
-                  safeeat.co.uk/terms
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link to="/dpa" className="text-se-green-700 underline hover:text-se-green-800">
+                  Data Processing Agreement
                 </Link>.
               </p>
             </div>
@@ -702,6 +706,9 @@ export default function HomePage() {
                 </Link>
                 <Link to="/terms" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
                   Terms of Service
+                </Link>
+                <Link to="/dpa" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
+                  DPA
                 </Link>
                 <Link to="/contact" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
                   Contact
