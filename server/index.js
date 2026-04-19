@@ -51,6 +51,18 @@ Sentry.init({
     return event
   },
 })
+// ---------------------------------------------------------------------------
+// Fail-fast on critical encryption key — UK GDPR Article 9 special-category data
+// must not be protected by a hardcoded fallback key. If this var is missing or
+// still set to the default, refuse to boot rather than silently encrypt with a
+// compromised key.
+// ---------------------------------------------------------------------------
+const ALLERGEN_ENCRYPTION_KEY = process.env.ALLERGEN_ENCRYPTION_KEY
+if (!ALLERGEN_ENCRYPTION_KEY || ALLERGEN_ENCRYPTION_KEY === 'safeeat-default-key-change-me') {
+  console.error('FATAL: ALLERGEN_ENCRYPTION_KEY env var must be set to a non-default value.')
+  console.error('Special-category allergen data (UK GDPR Article 9) cannot be protected without a proper key.')
+  process.exit(1)
+}
 const app = new Hono()
 // ---------------------------------------------------------------------------
 // Global error handler — catches unhandled errors and sends to Sentry
@@ -341,15 +353,13 @@ app.post('/api/cron/review-requests', async (c) => {
   }
 
   try {
-    const encryptionKey = process.env.ALLERGEN_ENCRYPTION_KEY || 'safeeat-default-key-change-me'
-
     // Find profiles saved 2-4 hours ago that haven't received a review email
     // and where the venue has review prompts enabled
     const profiles = await sql`
       SELECT
         cp.id,
         cp.venue_id,
-        pgp_sym_decrypt(cp.marketing_email, ${encryptionKey}) as email,
+        pgp_sym_decrypt(cp.marketing_email, ${ALLERGEN_ENCRYPTION_KEY}) as email,
         v.name as venue_name,
         v.slug as venue_slug,
         v.google_review_url,
@@ -524,7 +534,6 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
       ? allergenIds.filter((id) => typeof id === 'string' && id.length <= 20).slice(0, 14)
       : []
     const allergenJson = JSON.stringify(cleanAllergenIds)
-    const encryptionKey = process.env.ALLERGEN_ENCRYPTION_KEY || 'safeeat-default-key-change-me'
     // Store encrypted email for marketing-opted customers
     const cleanEmail = sanitiseString(identifier.trim().toLowerCase(), 254)
     const shouldStoreEmail = !!marketingConsent && cleanEmail && cleanEmail.includes('@')
@@ -532,7 +541,7 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
     // Pre-encrypt email separately to avoid nested sql template issues
     let encryptedEmail = null
     if (shouldStoreEmail) {
-      const enc = await sql`SELECT pgp_sym_encrypt(${cleanEmail}, ${encryptionKey}) as val`
+      const enc = await sql`SELECT pgp_sym_encrypt(${cleanEmail}, ${ALLERGEN_ENCRYPTION_KEY}) as val`
       encryptedEmail = enc[0].val
     }
 
@@ -544,7 +553,7 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
       VALUES (
         ${venueId},
         ${hashedId},
-        pgp_sym_encrypt(${allergenJson}, ${encryptionKey}),
+        pgp_sym_encrypt(${allergenJson}, ${ALLERGEN_ENCRYPTION_KEY}),
         ${cleanMask},
         true,
         ${!!marketingConsent},
@@ -553,7 +562,7 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
       )
       ON CONFLICT (venue_id, hashed_identifier)
       DO UPDATE SET
-        encrypted_allergens = pgp_sym_encrypt(${allergenJson}, ${encryptionKey}),
+        encrypted_allergens = pgp_sym_encrypt(${allergenJson}, ${ALLERGEN_ENCRYPTION_KEY}),
         allergen_mask = EXCLUDED.allergen_mask,
         marketing_consent = EXCLUDED.marketing_consent,
         marketing_consent_at = CASE WHEN EXCLUDED.marketing_consent THEN now() ELSE customer_profiles.marketing_consent_at END,
@@ -577,6 +586,9 @@ app.post('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
 })
 // ---------------------------------------------------------------------------
 // PUBLIC: Delete customer profile (GDPR right to erasure)
+// Returns a uniform response regardless of whether a profile existed, to
+// prevent email enumeration (attacker cannot discover whether an address is
+// registered at a given venue).
 // ---------------------------------------------------------------------------
 app.delete('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
   const slug = sanitiseSlug(c.req.param('slug'))
@@ -599,7 +611,8 @@ app.delete('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
       SELECT id FROM venues WHERE slug = ${slug} OR id = ${slug} LIMIT 1
     `
     if (venues.length === 0) {
-      return c.json({ error: 'Venue not found' }, 404)
+      // Do not reveal whether the venue exists either — uniform response
+      return c.json({ deleted: true })
     }
     const venueId = venues[0].id
 
@@ -616,11 +629,13 @@ app.delete('/api/menu/:slug/profile', rateLimitProfile(), async (c) => {
       RETURNING id
     `
 
+    // Log the actual outcome server-side for audit purposes, but return a
+    // uniform response to the client to prevent enumeration.
     if (result.length === 0) {
-      return c.json({ deleted: false, message: 'No matching profile found' })
+      console.log(`GDPR deletion requested for non-existent profile at venue ${venueId}`)
+    } else {
+      console.log(`GDPR deletion: profile ${result[0].id} for venue ${venueId}`)
     }
-
-    console.log(`GDPR deletion: profile ${result[0].id} for venue ${venueId}`)
     return c.json({ deleted: true })
   } catch (err) {
     Sentry.captureException(err, { extra: { route: 'DELETE /api/menu/:slug/profile', slug } })
@@ -1162,12 +1177,11 @@ app.post('/api/dashboard/:venueId/notifications', async (c) => {
     `
     if (venues.length === 0) return c.json({ error: 'Venue not found' }, 404)
     const venue = venues[0]
-    const encryptionKey = process.env.ALLERGEN_ENCRYPTION_KEY || 'safeeat-default-key-change-me'
     // Get marketing-opted profiles with decrypted emails
     const profiles = await sql`
       SELECT
         allergen_mask,
-        pgp_sym_decrypt(marketing_email, ${encryptionKey}) as email
+        pgp_sym_decrypt(marketing_email, ${ALLERGEN_ENCRYPTION_KEY}) as email
       FROM customer_profiles
       WHERE venue_id = ${venueId}
         AND marketing_consent = true
@@ -1681,4 +1695,5 @@ serve({ fetch: app.fetch, port }, () => {
   console.log(`Stripe: ${process.env.STRIPE_SECRET_KEY ? 'configured' : 'not configured'}`)
   console.log(`Sentry: ${process.env.SENTRY_DSN ? 'configured' : 'not configured'}`)
   console.log(`Email: Resend ${process.env.RESEND_API_KEY ? 'configured' : 'not configured'}`)
+  console.log(`Allergen encryption: key configured (fail-fast check passed)`)
 })
