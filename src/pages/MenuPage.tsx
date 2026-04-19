@@ -190,12 +190,15 @@ export default function MenuPage() {
     }
   }, [showSelector, selectorWasOpen, selectedAllergens.length, profile, promptDismissed, savedConfirmation])
 
-  const handleSave = (marketingConsent: boolean, email: string) => {
-    if (!venue) return
-    saveProfile(selectedAllergens, venue.name, marketingConsent, email)
-    setShowSavePrompt(false)
-    setSavedConfirmation(true)
-    setTimeout(() => setSavedConfirmation(false), 30000)
+ const handleSave = async (marketingConsent: boolean, email: string) => {
+    if (!venue) return { ok: false, error: 'server' as const }
+    const result = await saveProfile(selectedAllergens, venue.name, marketingConsent, email)
+    if (result.ok) {
+      setShowSavePrompt(false)
+      setSavedConfirmation(true)
+      setTimeout(() => setSavedConfirmation(false), 30000)
+    }
+    return result
   }
 
   const handleDismiss = () => {
