@@ -188,13 +188,22 @@ export default function TermsPage() {
             <p className="text-sm text-gray-700 leading-relaxed mb-3">
               The venue is the data controller for all personal data processed through SafeEat.
               SafeEat is the data processor. End User allergen data is special-category personal
-              data under Article 9 UK GDPR — the venue is responsible for obtaining explicit
+              data under Article 9 UK GDPR &mdash; the venue is responsible for obtaining explicit
               consent where required.
             </p>
-            <p className="text-sm text-gray-700 leading-relaxed">
+            <p className="text-sm text-gray-700 leading-relaxed mb-3">
               End User allergen profiles auto-delete after 18 months of inactivity, or at any
-              time on request. A full Data Processing Agreement is provided as part of the
-              signed Terms of Service at signup.
+              time on request. SafeEat is registered with the UK Information Commissioner&apos;s
+              Office (ICO).
+            </p>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              The full{' '}
+              <Link to="/dpa" className="text-se-green-700 underline hover:text-se-green-800 font-medium">
+                Data Processing Agreement
+              </Link>{' '}
+              sets out SafeEat&apos;s obligations as processor under UK GDPR Article 28, including
+              security measures, sub-processors, international transfer safeguards, and retention
+              policies. It forms part of these Terms of Service.
             </p>
           </section>
 
@@ -255,6 +264,9 @@ export default function TermsPage() {
                 </Link>
                 <Link to="/terms" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
                   Terms of Service
+                </Link>
+                <Link to="/dpa" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
+                  DPA
                 </Link>
                 <Link to="/contact" className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
                   Contact
