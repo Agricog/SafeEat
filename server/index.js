@@ -30,6 +30,7 @@ import {
   sendWeeklyInsight,
   sendCustomerNotification,
   sendReviewRequest,
+  sendToSConfirmation,
 } from './email.js'
 import { generateEhoReport } from './ehoReport.js'
 import { generateTableTalker } from './tableTalker.js'
@@ -63,6 +64,14 @@ if (!ALLERGEN_ENCRYPTION_KEY || ALLERGEN_ENCRYPTION_KEY === 'safeeat-default-key
   console.error('Special-category allergen data (UK GDPR Article 9) cannot be protected without a proper key.')
   process.exit(1)
 }
+// ---------------------------------------------------------------------------
+// Current Terms of Service version. Bump this string whenever the published
+// terms at /terms or the DPA at /dpa change in a way that requires customers
+// to re-accept. Existing customers will be gated out of /billing/checkout
+// until they accept the new version. The string is also embedded in the
+// acceptance record and the confirmation email for audit traceability.
+// ---------------------------------------------------------------------------
+const CURRENT_TOS_VERSION = '1.0'
 const app = new Hono()
 // ---------------------------------------------------------------------------
 // Global error handler — catches unhandled errors and sends to Sentry
@@ -151,6 +160,41 @@ app.post('/api/webhooks/stripe', async (c) => {
             sendWelcomeEmail({ venueEmail: venues[0].email, venueName: venues[0].name })
               .catch((err) => console.error('Welcome email error:', err))
           }
+          // -----------------------------------------------------------------
+          // Link the ToS acceptance row (created before checkout) to this
+          // Stripe session, and send the confirmation email with the real
+          // acceptance timestamp. Both operations are fire-and-forget —
+          // the subscription activation above is the authoritative action,
+          // and any failure here should not break the webhook response.
+          // -----------------------------------------------------------------
+          sql`
+            UPDATE tos_acceptances
+            SET stripe_session_id = ${session.id},
+                stripe_linked_at = now()
+            WHERE venue_id = ${venueId}
+              AND tos_version = ${CURRENT_TOS_VERSION}
+              AND stripe_session_id IS NULL
+              AND accepted_at = (
+                SELECT MAX(accepted_at) FROM tos_acceptances
+                WHERE venue_id = ${venueId}
+                  AND tos_version = ${CURRENT_TOS_VERSION}
+              )
+            RETURNING id, accepted_at, ip_address
+          `.then((rows) => {
+            if (rows.length === 0) {
+              console.warn(`No ToS acceptance row to link for venue ${venueId} session ${session.id}`)
+              return
+            }
+            if (venues.length > 0 && venues[0].email) {
+              sendToSConfirmation({
+                venueEmail: venues[0].email,
+                venueName: venues[0].name,
+                tosVersion: CURRENT_TOS_VERSION,
+                acceptedAt: rows[0].accepted_at,
+                ipAddress: rows[0].ip_address,
+              }).catch((err) => console.error('ToS confirmation email error:', err))
+            }
+          }).catch((err) => console.error('ToS session link error:', err))
         }
         break
       }
@@ -1615,6 +1659,83 @@ app.put('/api/dashboard/:venueId/venue', async (c) => {
   }
 })
 // ---------------------------------------------------------------------------
+// DASHBOARD: ToS acceptance — check if venue has accepted CURRENT version
+// Returns the most recent acceptance record for the current ToS version,
+// or null if no valid acceptance exists. Used by the frontend to decide
+// whether to show the tick-box gate before the Subscribe redirect.
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard/:venueId/tos/acceptance', async (c) => {
+  const venueId = c.get('venueId')
+  try {
+    const rows = await sql`
+      SELECT id, tos_version, accepted_at, terms_accepted, conduit_accepted,
+        stripe_session_id, stripe_linked_at
+      FROM tos_acceptances
+      WHERE venue_id = ${venueId}
+        AND tos_version = ${CURRENT_TOS_VERSION}
+        AND terms_accepted = true
+        AND conduit_accepted = true
+      ORDER BY accepted_at DESC
+      LIMIT 1
+    `
+    return c.json({
+      currentVersion: CURRENT_TOS_VERSION,
+      acceptance: rows.length > 0 ? rows[0] : null,
+    })
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'GET /api/dashboard/:venueId/tos/acceptance', venueId } })
+    console.error('ToS acceptance lookup error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
+// DASHBOARD: ToS acceptance — record a new acceptance event
+// Captures IP + user agent for evidentiary weight. Both tick-boxes must be
+// true for the record to be considered valid — the server re-validates this
+// on /billing/checkout (defence in depth).
+// ---------------------------------------------------------------------------
+app.post('/api/dashboard/:venueId/tos/accept', async (c) => {
+  const venueId = c.get('venueId')
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400)
+  }
+  const termsAccepted = !!body.termsAccepted
+  const conduitAccepted = !!body.conduitAccepted
+  if (!termsAccepted || !conduitAccepted) {
+    return c.json({
+      error: 'Both the Terms of Service and the venue responsibility acknowledgement must be accepted',
+    }, 400)
+  }
+  // Capture evidentiary metadata. X-Forwarded-For is set by Railway's proxy;
+  // take the leftmost entry which is the original client IP.
+  const xff = c.req.header('X-Forwarded-For') || ''
+  const ipFromXff = xff.split(',')[0].trim()
+  const ipAddress = sanitiseString(ipFromXff || c.req.header('X-Real-IP') || '', 64)
+  const userAgent = sanitiseString(c.req.header('User-Agent') || '', 500)
+  try {
+    const rows = await sql`
+      INSERT INTO tos_acceptances (
+        venue_id, tos_version, ip_address, user_agent,
+        terms_accepted, conduit_accepted
+      )
+      VALUES (
+        ${venueId}, ${CURRENT_TOS_VERSION}, ${ipAddress}, ${userAgent},
+        ${termsAccepted}, ${conduitAccepted}
+      )
+      RETURNING id, tos_version, accepted_at, terms_accepted, conduit_accepted
+    `
+    console.log(`ToS v${CURRENT_TOS_VERSION} accepted by venue ${venueId} from ${ipAddress || 'unknown'}`)
+    return c.json({ acceptance: rows[0] }, 201)
+  } catch (err) {
+    Sentry.captureException(err, { extra: { route: 'POST /api/dashboard/:venueId/tos/accept', venueId } })
+    console.error('ToS acceptance record error:', err)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+// ---------------------------------------------------------------------------
 // DASHBOARD: Subscription status
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard/:venueId/subscription', async (c) => {
@@ -1630,10 +1751,32 @@ app.get('/api/dashboard/:venueId/subscription', async (c) => {
 })
 // ---------------------------------------------------------------------------
 // DASHBOARD: Create Stripe Checkout session
+//
+// DEFENCE IN DEPTH: Before creating a Stripe session, the server re-validates
+// that a valid ToS acceptance exists for the current version. This means even
+// if a determined user crafted a direct API call to bypass the frontend
+// tick-box, the Stripe session creation would still refuse. The 403 response
+// tells the frontend to show the ToS gate.
 // ---------------------------------------------------------------------------
 app.post('/api/dashboard/:venueId/billing/checkout', async (c) => {
   const venueId = c.get('venueId')
   try {
+    // Server-side enforcement: require a current, dual-tick acceptance on record.
+    const acceptances = await sql`
+      SELECT id FROM tos_acceptances
+      WHERE venue_id = ${venueId}
+        AND tos_version = ${CURRENT_TOS_VERSION}
+        AND terms_accepted = true
+        AND conduit_accepted = true
+      LIMIT 1
+    `
+    if (acceptances.length === 0) {
+      return c.json({
+        error: 'tos_acceptance_required',
+        message: `Please accept the current Terms of Service and DPA (v${CURRENT_TOS_VERSION}) before subscribing.`,
+        currentVersion: CURRENT_TOS_VERSION,
+      }, 403)
+    }
     const venues = await sql`
       SELECT name, email FROM venues WHERE id = ${venueId} LIMIT 1
     `
@@ -1696,4 +1839,6 @@ serve({ fetch: app.fetch, port }, () => {
   console.log(`Sentry: ${process.env.SENTRY_DSN ? 'configured' : 'not configured'}`)
   console.log(`Email: Resend ${process.env.RESEND_API_KEY ? 'configured' : 'not configured'}`)
   console.log(`Allergen encryption: key configured (fail-fast check passed)`)
+  console.log(`ToS enforcement: active, current version v${CURRENT_TOS_VERSION}`)
 })
+  
