@@ -313,8 +313,17 @@ export default function DashboardSettings() {
           {/* Cross-contamination notice */}
           <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Cross-contamination notice</h3>
           <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <p className="text-xs text-gray-500 mb-2">
+              Optional. Shown as a banner on your customer menu when filled in, and left off when blank.
+            </p>
+            <p className="text-xs text-gray-500 mb-2">
+              <span className="font-medium text-gray-700">Add a notice</span> if your kitchen has genuine cross-contamination risk — shared fryers, shared prep surfaces, open kitchen handling multiple allergens.
+            </p>
             <p className="text-xs text-gray-500 mb-3">
-              Shown as a banner on your customer menu. Use this to disclose shared kitchen equipment, fryers, or prep surfaces that could cause cross-contamination.
+              <span className="font-medium text-gray-700">Leave blank</span> if your kitchen is allergen-controlled (e.g. dedicated gluten-free or nut-free environment). A banner you don't need can damage customer trust.
+            </p>
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+              This is your call as the operator — not a legal requirement. Per-dish &quot;may contain&quot; warnings are set on each dish. This venue-wide banner is for kitchen-wide risks that don't fit on a single dish.
             </p>
             {crossContamEditing ? (
               <div className="space-y-3">
@@ -345,12 +354,22 @@ export default function DashboardSettings() {
                     <p className="text-sm text-amber-800">{venue.crossContaminationNotice}</p>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-400 mb-3 italic">No notice set — add one to inform customers about shared kitchen equipment.</p>
+                  <p className="text-sm text-gray-400 mb-3 italic">No notice set — no banner will show on your customer menu.</p>
                 )}
-                <button onClick={() => setCrossContamEditing(true)}
-                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors">
-                  {venue?.crossContaminationNotice ? 'Edit notice' : 'Add notice'}
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => setCrossContamEditing(true)}
+                    className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors">
+                    {venue?.crossContaminationNotice ? 'Edit notice' : 'Add notice'}
+                  </button>
+                  {venue?.crossContaminationNotice && (
+                    <button
+                      onClick={() => { setCrossContamDraft(''); handleCrossContamSave() }}
+                      disabled={crossContamSaving}
+                      className="px-4 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-medium hover:bg-red-50 hover:text-red-700 transition-colors disabled:opacity-50">
+                      Remove notice
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
