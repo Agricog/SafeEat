@@ -4,9 +4,9 @@ import { BrowserRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import * as Sentry from '@sentry/react'
 import App from './App'
+import UpdateBanner from './components/UpdateBanner'
 import { LanguageProvider } from './lib/LanguageContext'
 import './index.css'
-
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN || '',
   environment: import.meta.env.MODE,
@@ -17,7 +17,6 @@ Sentry.init({
     return event
   },
 })
-
 // Register service worker for offline menu caching
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
@@ -31,16 +30,15 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
       })
   })
 }
-
 const rootElement = document.getElementById('root')
 if (!rootElement) throw new Error('Root element not found')
-
 createRoot(rootElement).render(
   <StrictMode>
     <HelmetProvider>
       <BrowserRouter>
         <LanguageProvider>
           <App />
+          <UpdateBanner />
         </LanguageProvider>
       </BrowserRouter>
     </HelmetProvider>
