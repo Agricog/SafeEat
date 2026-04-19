@@ -53,6 +53,7 @@ export default function DashboardSettings() {
   const [crossContamEditing, setCrossContamEditing] = useState(false)
   const [crossContamDraft, setCrossContamDraft] = useState('')
   const [crossContamSaving, setCrossContamSaving] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
   const menuUrl = `${window.location.origin}/menu/${venueSlug}`
   const billingResult = searchParams.get('billing')
   useEffect(() => {
@@ -206,6 +207,26 @@ export default function DashboardSettings() {
     } catch (err: any) {
       setError(err.message)
       setBillingLoading(false)
+    }
+  }
+  // Sign out with defence-in-depth cache purge. Clerk clears its own session,
+  // but we also instruct the service worker to wipe all SafeEat caches so no
+  // residue from this session can bleed into the next one on a shared device.
+  const handleSignOut = async () => {
+    setSigningOut(true)
+    try {
+      if ('serviceWorker' in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.getRegistration()
+          reg?.active?.postMessage({ type: 'PURGE_CACHES' })
+        } catch {
+          // Non-fatal — Clerk will still clear its own session
+        }
+      }
+      await signOut({ redirectUrl: '/' })
+    } catch (err: any) {
+      setError(err.message || 'Sign out failed')
+      setSigningOut(false)
     }
   }
   const subStatus = STATUS_LABELS[subscription?.status || 'trial'] || STATUS_LABELS.trial
@@ -528,10 +549,11 @@ export default function DashboardSettings() {
           <h3 className="text-sm font-semibold text-gray-700 mt-6 mb-3">Account</h3>
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <button
-              onClick={() => signOut({ redirectUrl: '/' })}
-              className="w-full px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
+              onClick={handleSignOut}
+              disabled={signingOut}
+              className="w-full px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
             >
-              Sign out
+              {signingOut ? 'Signing out...' : 'Sign out'}
             </button>
           </div>
         </div>
